@@ -15,7 +15,6 @@ module.exports = (app, client) => {
         console.log('✅ [server.js] database importado OK');
     } catch (err) {
         console.error('❌ [server.js] erro ao importar database:', err.message);
-        // Fallbacks para não quebrar as rotas
         users = new Map();
         config = { get: () => undefined };
     }
@@ -28,7 +27,7 @@ module.exports = (app, client) => {
     });
 
     // ============================
-    // ROTA DE TESTE (pra confirmar que o server tá vivo)
+    // ROTA DE TESTE
     // ============================
     app.get('/ping', (req, res) => {
         res.status(200).send('pong ✅ server.js tá rodando');
@@ -85,20 +84,34 @@ module.exports = (app, client) => {
                     userDevice,
                     verifiedAt: new Date().toISOString()
                 });
+                console.log('💾 [DB] usuário salvo:', userData.id);
             } catch (err) {
-                console.error('Erro ao salvar user:', err.message);
+                console.error('❌ [DB] erro ao salvar user:', err.message);
             }
 
             const guildId = process.env.GUILD_ID;
             const roleId = (config && config.get && config.get('roleId')) || process.env.ROLE_ID;
 
-            if (guildId) {
-                try {
-                    const putData = { access_token };
-                    if (roleId) putData.roles = [roleId];
+            console.log('🔍 [CARGO] guildId:', guildId);
+            console.log('🔍 [CARGO] roleId:', roleId);
+            console.log('🔍 [CARGO] userData.id:', userData.id);
+            console.log('🔍 [CARGO] tem access_token?', !!access_token);
 
-                    await axios.put(
-                        `https://discord.com/api/guilds/${guildId}/members/${userData.id}`,
+            if (!guildId) {
+                console.error('❌ [CARGO] GUILD_ID não configurado!');
+            } else if (!roleId) {
+                console.error('❌ [CARGO] ROLE_ID não configurado!');
+            } else {
+                try {
+                    const putData = {
+                        access_token,
+                        roles: [roleId]
+                    };
+
+                    console.log('📤 [CARGO] enviando PUT para Discord...');
+
+                    const resp = await axios.put(
+                        `https://discord.com/api/v10/guilds/${guildId}/members/${userData.id}`,
                         putData,
                         {
                             headers: {
@@ -108,8 +121,22 @@ module.exports = (app, client) => {
                             validateStatus: false
                         }
                     );
+
+                    console.log('📥 [CARGO] resposta do Discord:', resp.status);
+
+                    if (resp.status === 201) {
+                        console.log('✅ [CARGO] usuário ADICIONADO ao servidor COM o cargo');
+                    } else if (resp.status === 204) {
+                        console.log('✅ [CARGO] usuário JÁ estava no servidor, cargo APLICADO');
+                    } else {
+                        console.error('❌ [CARGO] erro do Discord:', resp.status, JSON.stringify(resp.data));
+                    }
                 } catch (err) {
-                    console.error('Erro ao adicionar membro:', err.message);
+                    console.error('❌ [CARGO] exceção:', err.message);
+                    if (err.response) {
+                        console.error('❌ [CARGO] status:', err.response.status);
+                        console.error('❌ [CARGO] data:', JSON.stringify(err.response.data));
+                    }
                 }
             }
 
@@ -124,8 +151,9 @@ module.exports = (app, client) => {
 
             try {
                 await sendLog(client, userData, ip, userDevice, config);
+                console.log('📝 [LOG] embed enviada pro canal');
             } catch (err) {
-                console.error('Erro no sendLog:', err.message);
+                console.error('❌ [LOG] erro:', err.message);
             }
 
             const guild = client.guilds.cache.get(guildId);
@@ -145,7 +173,11 @@ module.exports = (app, client) => {
             });
 
         } catch (error) {
-            console.error('Erro no callback OAuth2:', error.message);
+            console.error('❌ [CALLBACK] erro geral:', error.message);
+            if (error.response) {
+                console.error('❌ [CALLBACK] status:', error.response.status);
+                console.error('❌ [CALLBACK] data:', JSON.stringify(error.response.data));
+            }
             res.redirect(
                 `/error?msg=${encodeURIComponent(
                     error.response
