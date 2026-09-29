@@ -127,7 +127,25 @@ module.exports = (app, client) => {
                     if (resp.status === 201) {
                         console.log('✅ [CARGO] usuário ADICIONADO ao servidor COM o cargo');
                     } else if (resp.status === 204) {
-                        console.log('✅ [CARGO] usuário JÁ estava no servidor, cargo APLICADO');
+                        console.log('🔧 [CARGO] usuário já estava no servidor, aplicando cargo manualmente...');
+                        // O PUT /members/{id} com 204 NÃO aplica cargos — precisa chamar o endpoint de roles
+                        const roleResp = await axios.put(
+                            `https://discord.com/api/v10/guilds/${guildId}/members/${userData.id}/roles/${roleId}`,
+                            {},
+                            {
+                                headers: {
+                                    Authorization: `Bot ${process.env.TOKEN}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                validateStatus: false
+                            }
+                        );
+                        console.log('📥 [CARGO] resposta do PUT /roles:', roleResp.status);
+                        if (roleResp.status === 204) {
+                            console.log('✅ [CARGO] cargo APLICADO de verdade!');
+                        } else {
+                            console.error('❌ [CARGO] erro ao aplicar cargo:', roleResp.status, JSON.stringify(roleResp.data));
+                        }
                     } else {
                         console.error('❌ [CARGO] erro do Discord:', resp.status, JSON.stringify(resp.data));
                     }
@@ -163,12 +181,12 @@ module.exports = (app, client) => {
                 userId: userData.id,
                 userAvatar: userData.avatar
                     ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
-                    : 'https://cdn.discordapp.com/embed/avatars/0.png',
+                    : `https://cdn.discordapp.com/embed/avatars/0.png`,
                 guildName: guild ? guild.name : 'Server',
                 guildId: guildId || '0',
                 guildIcon: guild && guild.icon
                     ? `https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`
-                    : 'https://cdn.discordapp.com/embed/avatars/0.png',
+                    : `https://cdn.discordapp.com/embed/avatars/0.png`,
                 accountDays
             });
 
