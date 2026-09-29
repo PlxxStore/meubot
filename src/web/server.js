@@ -1,13 +1,42 @@
+console.log('🚀 [server.js] arquivo foi carregado');
+
 const axios = require('axios');
-const { users, config } = require('../database');
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = (app, client) => {
+    console.log('🚀 [server.js] função foi executada e rotas vão ser registradas');
 
+    // Helper: pega o database sem quebrar se der erro
+    let users, config;
+    try {
+        const db = require('../database');
+        users = db.users;
+        config = db.config;
+        console.log('✅ [server.js] database importado OK');
+    } catch (err) {
+        console.error('❌ [server.js] erro ao importar database:', err.message);
+        // Fallbacks para não quebrar as rotas
+        users = new Map();
+        config = { get: () => undefined };
+    }
+
+    // ============================
+    // ROTA RAIZ
+    // ============================
     app.get('/', (req, res) => {
         res.render('index.html');
     });
 
+    // ============================
+    // ROTA DE TESTE (pra confirmar que o server tá vivo)
+    // ============================
+    app.get('/ping', (req, res) => {
+        res.status(200).send('pong ✅ server.js tá rodando');
+    });
+
+    // ============================
+    // CALLBACK OAuth2
+    // ============================
     app.get('/oauth2/callback', async (req, res) => {
         const { code } = req.query;
         if (!code) return res.redirect('/error?msg=Missing code');
@@ -44,20 +73,24 @@ module.exports = (app, client) => {
 
             const userDevice = req.headers['user-agent'] || 'Unknown';
 
-            users.set(userData.id, {
-                id: userData.id,
-                username: userData.username,
-                avatar: userData.avatar,
-                email: userData.email,
-                access_token,
-                refresh_token,
-                ip,
-                userDevice,
-                verifiedAt: new Date().toISOString()
-            });
+            try {
+                users.set(userData.id, {
+                    id: userData.id,
+                    username: userData.username,
+                    avatar: userData.avatar,
+                    email: userData.email,
+                    access_token,
+                    refresh_token,
+                    ip,
+                    userDevice,
+                    verifiedAt: new Date().toISOString()
+                });
+            } catch (err) {
+                console.error('Erro ao salvar user:', err.message);
+            }
 
             const guildId = process.env.GUILD_ID;
-            const roleId = config.get('roleId') || process.env.ROLE_ID;
+            const roleId = (config && config.get && config.get('roleId')) || process.env.ROLE_ID;
 
             if (guildId) {
                 try {
@@ -75,7 +108,9 @@ module.exports = (app, client) => {
                             validateStatus: false
                         }
                     );
-                } catch {}
+                } catch (err) {
+                    console.error('Erro ao adicionar membro:', err.message);
+                }
             }
 
             const createdAt = new Date(
@@ -87,7 +122,11 @@ module.exports = (app, client) => {
                 (now - createdAt) / (1000 * 60 * 60 * 24)
             );
 
-            await sendLog(client, userData, ip, userDevice);
+            try {
+                await sendLog(client, userData, ip, userDevice, config);
+            } catch (err) {
+                console.error('Erro no sendLog:', err.message);
+            }
 
             const guild = client.guilds.cache.get(guildId);
 
@@ -106,6 +145,7 @@ module.exports = (app, client) => {
             });
 
         } catch (error) {
+            console.error('Erro no callback OAuth2:', error.message);
             res.redirect(
                 `/error?msg=${encodeURIComponent(
                     error.response
@@ -116,16 +156,25 @@ module.exports = (app, client) => {
         }
     });
 
+    // ============================
+    // ROTA DE ERRO
+    // ============================
     app.get('/error', (req, res) => {
         res.render('error.html', {
             error: req.query.msg || 'Unknown error'
         });
     });
+
+    console.log('✅ [server.js] todas as rotas foram registradas');
 };
 
-async function sendLog(client, userData, ip, userDevice) {
+// ============================
+// FUNÇÃO DE LOG
+// ============================
+async function sendLog(client, userData, ip, userDevice, config) {
     const logChannelId =
-        config.get('logChannelId') || process.env.LOG_CHANNEL_ID;
+        (config && config.get && config.get('logChannelId')) ||
+        process.env.LOG_CHANNEL_ID;
     if (!logChannelId) return;
 
     const channel = client.channels.cache.get(logChannelId);
