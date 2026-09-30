@@ -5,31 +5,40 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('configurar')
         .setDescription('Abre o painel de configuração do bot.'),
+
     async execute(interaction, client) {
         // Pega os dados com await
         let membersVerified = 0;
         let logChannelId = 'Não configurado';
         let roleId = 'Não configurado';
+        let giftLogChannelId = 'Não configurado';
 
         try {
             const allUsers = await users.all();
             membersVerified = Array.isArray(allUsers) ? allUsers.length : 0;
         } catch (err) {
-            console.error('❌ [PAINEL] erro ao contar users:', err.message);
+            console.error('❌ [PAINEL] erro users:', err.message);
         }
 
         try {
             const dbLogId = await config.get('logChannelId');
             logChannelId = dbLogId || process.env.LOG_CHANNEL_ID || 'Não configurado';
         } catch (err) {
-            console.error('❌ [PAINEL] erro ao ler logChannelId:', err.message);
+            console.error('❌ [PAINEL] erro log:', err.message);
         }
 
         try {
             const dbRoleId = await config.get('roleId');
             roleId = dbRoleId || process.env.ROLE_ID || 'Não configurado';
         } catch (err) {
-            console.error('❌ [PAINEL] erro ao ler roleId:', err.message);
+            console.error('❌ [PAINEL] erro role:', err.message);
+        }
+
+        try {
+            const dbGiftLogId = await config.get('giftLogChannelId');
+            giftLogChannelId = dbGiftLogId || 'Não configurado';
+        } catch (err) {
+            console.error('❌ [PAINEL] erro gift log:', err.message);
         }
 
         const ping = `${client.ws.ping}ms`;
@@ -41,6 +50,7 @@ module.exports = {
 
         const roleDisplay = roleId !== 'Não configurado' ? `<@&${roleId}>` : '`Não configurado`';
         const logDisplay = logChannelId !== 'Não configurado' ? `<#${logChannelId}>` : '`Não configurado`';
+        const giftLogDisplay = giftLogChannelId !== 'Não configurado' ? `<#${giftLogChannelId}>` : '`Não configurado`';
 
         const embed = new EmbedBuilder()
             .setColor('#26272F')
@@ -50,7 +60,8 @@ module.exports = {
             .addFields(
                 { name: 'Cargo de Verificado', value: roleDisplay, inline: true },
                 { name: 'Canal de Logs', value: logDisplay, inline: true },
-                { name: 'Membros Verificados', value: `\`${membersVerified}\``, inline: true }
+                { name: 'Membros Verificados', value: `\`${membersVerified}\``, inline: true },
+                { name: 'Canal de Logs de Gift', value: giftLogDisplay, inline: true }
             );
 
         const row1 = new ActionRowBuilder()
@@ -80,12 +91,16 @@ module.exports = {
                     .setEmoji({ id: "1470866629700092110" })
                     .setCustomId("config_puxar"),
                 new ButtonBuilder()
+                    .setStyle(ButtonStyle.Primary)
+                    .setLabel("Logs de Gift")
+                    .setEmoji('🎁')
+                    .setCustomId("config_gift_logs"),
+                new ButtonBuilder()
                     .setStyle(ButtonStyle.Link)
                     .setLabel("Testar Oauth2")
                     .setURL(oauthUrl),
             );
 
-        // ✅ CORREÇÃO: usar flags: 64 (efêmero)
         await interaction.reply({
             embeds: [embed],
             components: [row1, row2],
