@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, MessageFlags, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { users, config } = require('../database');
 
 module.exports = {
@@ -6,7 +6,7 @@ module.exports = {
         .setName('configurar')
         .setDescription('Abre o painel de configuração do bot.'),
     async execute(interaction, client) {
-        // Pega os dados com await (MongoDB é assíncrono)
+        // Pega os dados com await
         let membersVerified = 0;
         let logChannelId = 'Não configurado';
         let roleId = 'Não configurado';
@@ -39,7 +39,6 @@ module.exports = {
         const scopes = encodeURIComponent('identify email guilds.join');
         const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}`;
 
-        // Formata os IDs pra ficar bonito
         const roleDisplay = roleId !== 'Não configurado' ? `<@&${roleId}>` : '`Não configurado`';
         const logDisplay = logChannelId !== 'Não configurado' ? `<#${logChannelId}>` : '`Não configurado`';
 
@@ -86,6 +85,11 @@ module.exports = {
                     .setURL(oauthUrl),
             );
 
-        await interaction.reply({ embeds: [embed], components: [row1, row2], flags: MessageFlags.Ephemeral });
+        // ✅ CORREÇÃO: usar flags: 64 (efêmero)
+        await interaction.reply({
+            embeds: [embed],
+            components: [row1, row2],
+            flags: 64
+        });
     },
 };
