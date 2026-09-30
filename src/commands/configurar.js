@@ -6,9 +6,32 @@ module.exports = {
         .setName('configurar')
         .setDescription('Abre o painel de configuração do bot.'),
     async execute(interaction, client) {
-        const membersVerified = Object.keys(users.all()).length;
-        const logChannelId = config.get('logChannelId') || process.env.LOG_CHANNEL_ID || 'Não configurado';
-        const roleId = config.get('roleId') || process.env.ROLE_ID || 'Não configurado';
+        // Pega os dados com await (MongoDB é assíncrono)
+        let membersVerified = 0;
+        let logChannelId = 'Não configurado';
+        let roleId = 'Não configurado';
+
+        try {
+            const allUsers = await users.all();
+            membersVerified = Array.isArray(allUsers) ? allUsers.length : 0;
+        } catch (err) {
+            console.error('❌ [PAINEL] erro ao contar users:', err.message);
+        }
+
+        try {
+            const dbLogId = await config.get('logChannelId');
+            logChannelId = dbLogId || process.env.LOG_CHANNEL_ID || 'Não configurado';
+        } catch (err) {
+            console.error('❌ [PAINEL] erro ao ler logChannelId:', err.message);
+        }
+
+        try {
+            const dbRoleId = await config.get('roleId');
+            roleId = dbRoleId || process.env.ROLE_ID || 'Não configurado';
+        } catch (err) {
+            console.error('❌ [PAINEL] erro ao ler roleId:', err.message);
+        }
+
         const ping = `${client.ws.ping}ms`;
 
         const clientId = process.env.CLIENT_ID;
@@ -16,14 +39,18 @@ module.exports = {
         const scopes = encodeURIComponent('identify email guilds.join');
         const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}`;
 
+        // Formata os IDs pra ficar bonito
+        const roleDisplay = roleId !== 'Não configurado' ? `<@&${roleId}>` : '`Não configurado`';
+        const logDisplay = logChannelId !== 'Não configurado' ? `<#${logChannelId}>` : '`Não configurado`';
+
         const embed = new EmbedBuilder()
             .setColor('#26272F')
             .setThumbnail(client.user.displayAvatarURL())
             .setTitle('## Painel de Gerenciamento')
             .setDescription(`Latência do bot: \`${ping}\`\nCréditos: [hyo](https://discord.com/users/1447028236050759700)`)
             .addFields(
-                { name: 'Cargo de Verificado', value: `<@&${roleId}>`, inline: true },
-                { name: 'Canal de Logs', value: `<#${logChannelId}>`, inline: true },
+                { name: 'Cargo de Verificado', value: roleDisplay, inline: true },
+                { name: 'Canal de Logs', value: logDisplay, inline: true },
                 { name: 'Membros Verificados', value: `\`${membersVerified}\``, inline: true }
             );
 
