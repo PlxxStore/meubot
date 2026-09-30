@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -103,9 +103,14 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 // ============================
-// Ready — Reagendar sorteios
+// Ready — Reagendar sorteios + Registrar comandos
 // ============================
 client.once('ready', async () => {
+    console.log(`✅ Bot online: ${client.user.tag}`);
+
+    // ============================
+    // Reagendar sorteios
+    // ============================
     try {
         const { config } = require('./src/database');
         const sorteio = client.commands.get('sorteio');
@@ -136,6 +141,35 @@ client.once('ready', async () => {
         }
     } catch (err) {
         console.error('❌ Erro ao reagendar sorteios:', err.message);
+    }
+
+    // ============================
+    // REGISTRAR COMANDOS AUTOMATICAMENTE
+    // ============================
+    try {
+        const commands = [];
+        const cmdPath = path.join(__dirname, 'src/commands');
+        const cmdFiles = fs.readdirSync(cmdPath).filter(f => f.endsWith('.js'));
+
+        for (const file of cmdFiles) {
+            const cmd = require(path.join(cmdPath, file));
+            if (cmd.data && cmd.data.name) {
+                commands.push(cmd.data.toJSON());
+            }
+        }
+
+        console.log(`📤 Registrando ${commands.length} comandos no Discord...`);
+
+        const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+        await rest.put(
+            Routes.applicationCommands(process.env.CLIENT_ID),
+            { body: commands }
+        );
+
+        console.log(`✅ ${commands.length} comandos registrados automaticamente!`);
+        console.log(`📋 Comandos: ${commands.map(c => c.name).join(', ')}`);
+    } catch (err) {
+        console.error('❌ Erro ao registrar comandos:', err.message);
     }
 });
 
