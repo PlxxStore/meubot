@@ -14,9 +14,9 @@ let mongoClient = null;
 let mongoDb = null;
 let conectado = false;
 
-// Inicia conexão
 async function conectarMongo() {
-    if (conectado) return mongoDb;
+    if (conectado && mongoDb) return mongoDb;
+    if (!uri) throw new Error('MONGODB_URI não configurada');
     try {
         mongoClient = new MongoClient(uri);
         await mongoClient.connect();
@@ -26,11 +26,12 @@ async function conectarMongo() {
         return mongoDb;
     } catch (err) {
         console.error('❌ [MongoDB] erro de conexão:', err.message);
+        conectado = false;
         throw err;
     }
 }
 
-// Conecta imediatamente
+// Conecta imediatamente ao ligar
 conectarMongo().catch(err => console.error('Erro inicial MongoDB:', err.message));
 
 // ============================
@@ -38,27 +39,27 @@ conectarMongo().catch(err => console.error('Erro inicial MongoDB:', err.message)
 // ============================
 function criarColecao(nomeColecao) {
     return {
-        // Equivalente ao .set(key, value)
+        // .set(key, value) → retorna Promise
         async set(key, value) {
             const db = await conectarMongo();
             const col = db.collection(nomeColecao);
             await col.updateOne(
-                { _id: key },
+                { _id: String(key) },
                 { $set: { value } },
                 { upsert: true }
             );
             return true;
         },
 
-        // Equivalente ao .get(key)
+        // .get(key) → retorna Promise com o valor
         async get(key) {
             const db = await conectarMongo();
             const col = db.collection(nomeColecao);
-            const doc = await col.findOne({ _id: key });
+            const doc = await col.findOne({ _id: String(key) });
             return doc ? doc.value : undefined;
         },
 
-        // Equivalente ao .all()
+        // .all() → retorna Promise com array [{ID, data}]
         async all() {
             const db = await conectarMongo();
             const col = db.collection(nomeColecao);
@@ -69,19 +70,19 @@ function criarColecao(nomeColecao) {
             }));
         },
 
-        // Equivalente ao .delete(key)
+        // .delete(key)
         async delete(key) {
             const db = await conectarMongo();
             const col = db.collection(nomeColecao);
-            await col.deleteOne({ _id: key });
+            await col.deleteOne({ _id: String(key) });
             return true;
         },
 
-        // Equivalente ao .has(key)
+        // .has(key)
         async has(key) {
             const db = await conectarMongo();
             const col = db.collection(nomeColecao);
-            const doc = await col.findOne({ _id: key });
+            const doc = await col.findOne({ _id: String(key) });
             return !!doc;
         }
     };
