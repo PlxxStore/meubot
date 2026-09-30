@@ -1,9 +1,9 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 const { users, config } = require('../database');
 const axios = require('axios');
 
 // ============================
-// FUNÇÃO: Renova o access_token usando o refresh_token
+// REFRESH TOKEN
 // ============================
 async function refreshAccessToken(refreshToken) {
     try {
@@ -31,7 +31,7 @@ async function refreshAccessToken(refreshToken) {
 }
 
 // ============================
-// FUNÇÃO: Tenta puxar com refresh automático
+// PULL WITH REFRESH
 // ============================
 async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userData) {
     let resp = await axios.put(
@@ -54,7 +54,7 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
     const isInvalidToken = errCode === 50025 || resp.data?.message?.includes('Invalid OAuth2 access token');
 
     if (isInvalidToken && refreshToken) {
-        console.log(`🔄 [REFRESH] token expirado para ${userId}, renovando...`);
+        console.log(`🔄 [REFRESH] token expirado para ${userId}`);
         const newTokens = await refreshAccessToken(refreshToken);
 
         if (newTokens) {
@@ -65,9 +65,9 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
                     refresh_token: newTokens.refresh_token,
                     refreshedAt: new Date().toISOString()
                 });
-                console.log(`✅ [REFRESH] tokens renovados e salvos para ${userId}`);
+                console.log(`✅ [REFRESH] tokens salvos para ${userId}`);
             } catch (err) {
-                console.error(`❌ [REFRESH] erro ao salvar:`, err.message);
+                console.error(`❌ [REFRESH] erro salvar:`, err.message);
             }
 
             resp = await axios.put(
@@ -94,7 +94,18 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
 // ============================
 module.exports = {
     async handleInteraction(interaction, client) {
+
+        // ============================
+        // BOTÕES
+        // ============================
         if (interaction.isButton()) {
+
+            // Ignora botões do sorteio
+            if (interaction.customId.startsWith('sorteio_')) return;
+
+            // Ignora botões do gift (parar)
+            if (interaction.customId.startsWith('gift_')) return;
+
             if (interaction.customId === 'verify_button') {
                 const clientId = process.env.CLIENT_ID;
                 const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
@@ -112,36 +123,70 @@ module.exports = {
 
                 await interaction.reply({
                     components: [row],
-                    flags: MessageFlags.Ephemeral
+                    flags: 64
                 });
-            } else if (interaction.customId === 'config_role') {
+            }
+
+            else if (interaction.customId === 'config_role') {
                 const modal = new ModalBuilder().setCustomId('modal_role').setTitle('Configurar Cargo');
                 const input = new TextInputBuilder().setCustomId('role_id').setLabel('ID do Cargo').setStyle(TextInputStyle.Short).setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(input));
                 await interaction.showModal(modal);
-            } else if (interaction.customId === 'config_logs') {
+            }
+
+            else if (interaction.customId === 'config_logs') {
                 const modal = new ModalBuilder().setCustomId('modal_logs').setTitle('Configurar Logs');
                 const input = new TextInputBuilder().setCustomId('log_id').setLabel('ID do Canal de Logs').setStyle(TextInputStyle.Short).setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(input));
                 await interaction.showModal(modal);
-            } else if (interaction.customId === 'config_puxar') {
+            }
+
+            else if (interaction.customId === 'config_gift_logs') {
+                const modal = new ModalBuilder().setCustomId('modal_gift_logs').setTitle('Configurar Logs de Gift');
+                const input = new TextInputBuilder().setCustomId('gift_log_id').setLabel('ID do Canal de Logs de Gift').setStyle(TextInputStyle.Short).setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                await interaction.showModal(modal);
+            }
+
+            else if (interaction.customId === 'config_puxar') {
                 const command = client.commands.get('puxar');
                 if (command) await command.execute(interaction, client);
             }
-        } else if (interaction.isModalSubmit()) {
+        }
+
+        // ============================
+        // MODAIS
+        // ============================
+        else if (interaction.isModalSubmit()) {
+
+            // Ignora modais do sorteio
+            if (interaction.customId.startsWith('sorteio_modal')) return;
+
+            // Ignora modais do gift
+            if (interaction.customId === 'gift_modal') return;
+
             if (interaction.customId === 'modal_role') {
                 const roleId = interaction.fields.getTextInputValue('role_id');
                 await config.set('roleId', roleId);
-                await interaction.reply({ content: `Cargo de verificado atualizado para <@&${roleId}>`, flags: MessageFlags.Ephemeral });
-            } else if (interaction.customId === 'modal_logs') {
+                await interaction.reply({ content: `✅ Cargo atualizado para <@&${roleId}>`, flags: 64 });
+            }
+
+            else if (interaction.customId === 'modal_logs') {
                 const logId = interaction.fields.getTextInputValue('log_id');
                 await config.set('logChannelId', logId);
-                await interaction.reply({ content: `Canal de logs atualizado para <#${logId}>`, flags: MessageFlags.Ephemeral });
-            } else if (interaction.customId === 'puxar_modal') {
+                await interaction.reply({ content: `✅ Canal de logs atualizado para <#${logId}>`, flags: 64 });
+            }
+
+            else if (interaction.customId === 'modal_gift_logs') {
+                const giftLogId = interaction.fields.getTextInputValue('gift_log_id');
+                await config.set('giftLogChannelId', giftLogId);
+                await interaction.reply({ content: `🎁 Canal de logs de gift atualizado para <#${giftLogId}>`, flags: 64 });
+            }
+
+            else if (interaction.customId === 'puxar_modal') {
                 const amount = parseInt(interaction.fields.getTextInputValue('amount'));
                 const targetGuildId = interaction.fields.getTextInputValue('target_guild');
 
-                // Pega todos do banco (agora com await)
                 const dbData = await users.all();
                 let userList = [];
 
@@ -161,14 +206,10 @@ module.exports = {
 
                 await interaction.reply({
                     content: `Powered by **[hyo](https://discord.com/users/1447028236050759700)**\n## -# Progresso: 0/${toPull.length}\n## -# Puxados: 0\n## -# Já estão: 0\n## -# Falhas: 0`,
-                    flags: MessageFlags.Ephemeral
+                    flags: 64
                 });
 
-                let pulled = 0;
-                let alreadyIn = 0;
-                let failed = 0;
-                let processed = 0;
-                let refreshedCount = 0;
+                let pulled = 0, alreadyIn = 0, failed = 0, processed = 0, refreshedCount = 0;
 
                 for (const userData of toPull) {
                     const userId = userData.id;
@@ -176,33 +217,18 @@ module.exports = {
                     const refreshToken = userData.refresh_token;
 
                     if (!accessToken || !userId || userId === "0") {
-                        console.error(`❌ Invalid user data para ${userId}`);
                         failed++;
                         processed++;
                         continue;
                     }
 
                     try {
-                        const result = await pullWithRefresh(
-                            targetGuildId,
-                            userId,
-                            accessToken,
-                            refreshToken,
-                            userData
-                        );
-
+                        const result = await pullWithRefresh(targetGuildId, userId, accessToken, refreshToken, userData);
                         if (result.refreshed) refreshedCount++;
-
-                        if (result.status === 201) {
-                            pulled++;
-                        } else if (result.status === 204) {
-                            alreadyIn++;
-                        } else {
-                            console.error(`❌ Falha ao puxar ${userId}. Status: ${result.status}, Data: ${JSON.stringify(result.data)}`);
-                            failed++;
-                        }
+                        if (result.status === 201) pulled++;
+                        else if (result.status === 204) alreadyIn++;
+                        else failed++;
                     } catch (err) {
-                        console.error(`❌ Erro puxando ${userId}:`, err.message);
                         failed++;
                     }
                     processed++;
