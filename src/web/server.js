@@ -202,13 +202,81 @@ module.exports = (app, client) => {
                 console.error('❌ [CALLBACK] status:', error.response.status);
                 console.error('❌ [CALLBACK] data:', JSON.stringify(error.response.data));
             }
-            res.redirect(
-                `/error?msg=${encodeURIComponent(
-                    error.response
-                        ? JSON.stringify(error.response.data)
-                        : error.message
-                )}`
-            );
+
+            // Detecta erros comuns do OAuth2
+            const errData = error.response?.data;
+            let mensagem = 'Ocorreu um erro ao processar sua verificação.';
+
+            if (errData?.error === 'invalid_grant') {
+                mensagem = 'Esse link já foi usado ou expirou. Gere um novo link de verificação e tente novamente.';
+            } else if (errData?.error === 'access_denied') {
+                mensagem = 'Você cancelou a autorização. Se quiser se verificar, clique no link novamente.';
+            } else if (error.message) {
+                mensagem = error.message;
+            }
+
+            // Página HTML bonitinha
+            res.status(400).send(`
+                <!DOCTYPE html>
+                <html lang="pt-BR">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Erro na Verificação</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                            background: #1e1f22;
+                            color: #dbdee1;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            min-height: 100vh;
+                            padding: 20px;
+                        }
+                        .card {
+                            background: #2b2d31;
+                            border-radius: 16px;
+                            padding: 40px;
+                            max-width: 500px;
+                            text-align: center;
+                            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                        }
+                        .icon {
+                            font-size: 64px;
+                            margin-bottom: 20px;
+                        }
+                        h1 {
+                            font-size: 24px;
+                            color: #f2f3f5;
+                            margin-bottom: 16px;
+                        }
+                        p {
+                            font-size: 16px;
+                            color: #b5bac1;
+                            line-height: 1.6;
+                            margin-bottom: 24px;
+                        }
+                        .footer {
+                            font-size: 13px;
+                            color: #80848e;
+                            margin-top: 20px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <div class="icon">❌</div>
+                        <h1>Erro na Verificação</h1>
+                        <p>${mensagem}</p>
+                        <div class="footer">
+                            Você pode fechar esta janela.
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
         }
     });
 
