@@ -6,7 +6,14 @@ module.exports = {
         .setName('puxar')
         .setDescription('Puxa membros verificados para um servidor.'),
     async execute(interaction, client) {
-        const membersVerified = Object.keys(users.all()).length;
+        // Conta quantos usuários tem no banco (com await!)
+        let membersVerified = 0;
+        try {
+            const allUsers = await users.all();
+            membersVerified = Array.isArray(allUsers) ? allUsers.length : 0;
+        } catch (err) {
+            console.error('❌ [PUXAR] erro ao contar users:', err.message);
+        }
 
         const modal = new ModalBuilder()
             .setCustomId('puxar_modal')
