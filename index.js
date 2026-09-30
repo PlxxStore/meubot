@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -15,7 +15,9 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Load Events
+// ============================
+// Carregar Eventos
+// ============================
 const eventsPath = path.join(__dirname, 'src/events');
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
@@ -30,7 +32,9 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// Load Commands
+// ============================
+// Carregar Comandos
+// ============================
 const commandsPath = path.join(__dirname, 'src/commands');
 if (fs.existsSync(commandsPath)) {
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -45,14 +49,98 @@ if (fs.existsSync(commandsPath)) {
     }
 }
 
+// ============================
+// Handler de interações (embutido no index pra garantir)
+// ============================
+client.on('interactionCreate', async (interaction) => {
+    try {
+        // --- SLASH COMMANDS ---
+        if (interaction.isChatInputCommand()) {
+            const command = client.commands.get(interaction.commandName);
+            if (command && command.execute) {
+                await command.execute(interaction, client);
+            }
+            return;
+        }
+
+        // --- SORTEIO (modais e botões) ---
+        const sorteio = client.commands.get('sorteio');
+        if (sorteio && sorteio.handleInteraction) {
+            const isSorteioModal = interaction.isModalSubmit() && interaction.customId.startsWith('sorteio_modal');
+            const isSorteioButton = interaction.isButton() && interaction.customId.startsWith('sorteio_');
+            if (isSorteioModal || isSorteioButton) {
+                return await sorteio.handleInteraction(interaction, client);
+            }
+        }
+
+        // --- HANDLER (botões/modais do painel) ---
+        const handler = client.commands.get('handler');
+        if (handler && handler.handleInteraction) {
+            await handler.handleInteraction(interaction, client);
+        }
+    } catch (err) {
+        console.error('❌ Erro no interactionCreate:', err);
+        // Tenta responder o usuário se possível
+        try {
+            if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    content: '❌ Ocorreu um erro ao processar essa interação.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+        } catch {}
+    }
+});
+
+// ============================
+// Reagendar sorteios ativos ao ligar
+// ============================
+client.once('ready', async () => {
+    try {
+        const { config } = require('./src/database');
+        const sorteio = client.commands.get('sorteio');
+        const sorteios = config.get('sorteios') || {};
+        client.sorteioTimers = client.sorteioTimers || {};
+
+        for (const [id, s] of Object.entries(sorteios)) {
+            if (s.finalizado) continue;
+
+            const tempoRestante = s.endsAt - Date.now();
+
+            if (tempoRestante <= 0) {
+                // Já expirou enquanto tava offline
+                console.log(`⏰ Sorteio ${id} já expirou enquanto offline, finalizando...`);
+                if (sorteio && sorteio.finalizarSorteio) {
+                    await sorteio.finalizarSorteio(client, id);
+                }
+            } else {
+                // Reagenda
+                console.log(`⏰ Reagendando sorteio ${id} para daqui ${Math.round(tempoRestante / 1000)}s`);
+                client.sorteioTimers[id] = setTimeout(
+                    () => {
+                        if (sorteio && sorteio.finalizarSorteio) {
+                            sorteio.finalizarSorteio(client, id);
+                        }
+                    },
+                    tempoRestante
+                );
+            }
+        }
+    } catch (err) {
+        console.error('❌ Erro ao reagendar sorteios:', err.message);
+    }
+});
+
+// ============================
 // Web Server
+// ============================
 const app = express();
-const PORT = process.env.PORT || 5000;  // ← MUDOU
+const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'src/web/public')));
 
-// Simple custom engine to replace <%= variable %> with data
+// Engine customizada
 app.engine('html', (filePath, options, callback) => {
     fs.readFile(filePath, (err, content) => {
         if (err) return callback(err);
@@ -70,14 +158,16 @@ app.engine('html', (filePath, options, callback) => {
 app.set('views', path.join(__dirname, 'src/web/views'));
 app.set('view engine', 'html');
 
-// Import Web Routes
+// Importar rotas web
 require('./src/web/server')(app, client);
 
-// ← ORDEM MUDOU: primeiro liga o site, depois o bot
+// ============================
+// Inicialização
+// ============================
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Web server running on port ${PORT}`);
+    console.log(`🌐 Web server rodando na porta ${PORT}`);
 });
 
 client.login(process.env.TOKEN).catch(err => {
-    console.error('Failed to login to Discord:', err.message);
+    console.error('❌ Falha ao logar no Discord:', err.message);
 });
