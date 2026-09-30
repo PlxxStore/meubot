@@ -100,7 +100,14 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
 // ============================
 module.exports = {
     async handleInteraction(interaction, client) {
+        // ============================
+        // BOTÕES
+        // ============================
         if (interaction.isButton()) {
+
+            // Ignora botões do sorteio (tratados no index.js)
+            if (interaction.customId.startsWith('sorteio_')) return;
+
             if (interaction.customId === 'verify_button') {
                 const clientId = process.env.CLIENT_ID;
                 const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
@@ -120,30 +127,49 @@ module.exports = {
                     components: [row],
                     flags: MessageFlags.Ephemeral
                 });
-            } else if (interaction.customId === 'config_role') {
+            }
+
+            else if (interaction.customId === 'config_role') {
                 const modal = new ModalBuilder().setCustomId('modal_role').setTitle('Configurar Cargo');
                 const input = new TextInputBuilder().setCustomId('role_id').setLabel('ID do Cargo').setStyle(TextInputStyle.Short).setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(input));
                 await interaction.showModal(modal);
-            } else if (interaction.customId === 'config_logs') {
+            }
+
+            else if (interaction.customId === 'config_logs') {
                 const modal = new ModalBuilder().setCustomId('modal_logs').setTitle('Configurar Logs');
                 const input = new TextInputBuilder().setCustomId('log_id').setLabel('ID do Canal de Logs').setStyle(TextInputStyle.Short).setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(input));
                 await interaction.showModal(modal);
-            } else if (interaction.customId === 'config_puxar') {
+            }
+
+            else if (interaction.customId === 'config_puxar') {
                 const command = client.commands.get('puxar');
                 if (command) await command.execute(interaction, client);
             }
-        } else if (interaction.isModalSubmit()) {
+        }
+
+        // ============================
+        // MODAIS
+        // ============================
+        else if (interaction.isModalSubmit()) {
+
+            // Ignora modais do sorteio (tratados no index.js)
+            if (interaction.customId.startsWith('sorteio_modal')) return;
+
             if (interaction.customId === 'modal_role') {
                 const roleId = interaction.fields.getTextInputValue('role_id');
                 config.set('roleId', roleId);
                 await interaction.reply({ content: `Cargo de verificado atualizado para <@&${roleId}>`, flags: MessageFlags.Ephemeral });
-            } else if (interaction.customId === 'modal_logs') {
+            }
+
+            else if (interaction.customId === 'modal_logs') {
                 const logId = interaction.fields.getTextInputValue('log_id');
                 config.set('logChannelId', logId);
                 await interaction.reply({ content: `Canal de logs atualizado para <#${logId}>`, flags: MessageFlags.Ephemeral });
-            } else if (interaction.customId === 'puxar_modal') {
+            }
+
+            else if (interaction.customId === 'puxar_modal') {
                 const amount = parseInt(interaction.fields.getTextInputValue('amount'));
                 const targetGuildId = interaction.fields.getTextInputValue('target_guild');
 
