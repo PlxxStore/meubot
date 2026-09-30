@@ -7,21 +7,21 @@ function renderGiftPage(gift, baseUrl) {
 
     if (status === 'esgotado') {
         conteudoPrincipal = `
-            <div class="status-icon">✅</div>
-            <h1>Gift Esgotado</h1>
-            <p>Esse gift já foi usado. Não é possível usá-lo novamente.</p>
+            <div class="status-icon">✓</div>
+            <h1>Gift já utilizado</h1>
+            <p>Este gift já foi resgatado e não está mais disponível.</p>
         `;
     } else if (expirado) {
         conteudoPrincipal = `
-            <div class="status-icon">⏰</div>
-            <h1>Gift Expirado</h1>
-            <p>Esse gift expirou em ${dataExpira}.</p>
+            <div class="status-icon">×</div>
+            <h1>Gift expirado</h1>
+            <p>Este gift expirou em ${dataExpira}.</p>
         `;
     } else {
         conteudoPrincipal = `
-            <div class="status-icon">🎁</div>
+            <div class="status-icon">◆</div>
             <h1>Gift de Membros</h1>
-            <p>Esse gift dá direito a puxar <strong>${gift.quantidade} membros</strong> para o seu servidor.</p>
+            <p>Você tem direito a puxar <strong>${gift.quantidade} membros</strong> para um servidor.</p>
 
             <div class="info-box">
                 <div class="info-item">
@@ -34,7 +34,7 @@ function renderGiftPage(gift, baseUrl) {
                 </div>
                 <div class="info-item">
                     <span class="info-label">Status</span>
-                    <span class="info-value success">● Ativo</span>
+                    <span class="info-value status-active">Ativo</span>
                 </div>
             </div>
 
@@ -42,11 +42,8 @@ function renderGiftPage(gift, baseUrl) {
                 <div class="step-number">1</div>
                 <div class="step-content">
                     <h3>Adicione o bot no servidor</h3>
-                    <p>Clique no botão abaixo pra adicionar o bot com as permissões necessárias.</p>
+                    <p>Clique no botão abaixo para convidar o bot com as permissões necessárias.</p>
                     <a href="${baseUrl}/invite" target="_blank" class="btn btn-primary">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
-                        </svg>
                         Adicionar Bot
                     </a>
                 </div>
@@ -55,19 +52,19 @@ function renderGiftPage(gift, baseUrl) {
             <div class="step">
                 <div class="step-number">2</div>
                 <div class="step-content">
-                    <h3>Cole o ID do servidor</h3>
-                    <p>Ative o modo desenvolvedor no Discord, clique com botão direito no servidor → Copiar ID.</p>
-                    <input type="text" id="guildId" placeholder="Ex: 1234567890123456789" maxlength="20" />
+                    <h3>Informe o ID do servidor</h3>
+                    <p>Ative o modo desenvolvedor no Discord e copie o ID do servidor de destino.</p>
+                    <input type="text" id="guildId" placeholder="000000000000000000" maxlength="20" />
                 </div>
             </div>
 
             <div class="step">
                 <div class="step-number">3</div>
                 <div class="step-content">
-                    <h3>Inicie a puxada</h3>
-                    <p>Clique no botão abaixo. O bot vai puxar ${gift.quantidade} membros pro seu servidor.</p>
+                    <h3>Iniciar puxada</h3>
+                    <p>O bot vai puxar ${gift.quantidade} membros para o servidor informado.</p>
                     <button id="btnIniciar" class="btn btn-success" onclick="iniciarGift()">
-                        🚀 Iniciar
+                        Iniciar
                     </button>
                 </div>
             </div>
@@ -81,374 +78,304 @@ function renderGiftPage(gift, baseUrl) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuzion Gifts</title>
+    <title>Gift de Membros</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #0a0a0f;
-            color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #0b0b0d;
+            color: #e6e6e8;
             min-height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 80px 20px 20px;
-            overflow-x: hidden;
-            position: relative;
+            flex-direction: column;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 20% 30%, rgba(88, 101, 242, 0.15) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 70%, rgba(87, 242, 135, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 50% 50%, rgba(235, 69, 158, 0.08) 0%, transparent 50%);
-            animation: rotate 30s linear infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .particles {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 1;
-            overflow: hidden;
-        }
-
-        .particle {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.6);
-            border-radius: 50%;
-            animation: floatUp linear infinite;
-        }
-
-        @keyframes floatUp {
-            0% {
-                transform: translateY(100vh) scale(0);
-                opacity: 0;
-            }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% {
-                transform: translateY(-100px) scale(1);
-                opacity: 0;
-            }
-        }
-
+        /* Header */
         .header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
             padding: 20px 32px;
+            border-bottom: 1px solid #1c1c1f;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            z-index: 10;
-            background: linear-gradient(180deg, rgba(10, 10, 15, 0.95), transparent);
-            backdrop-filter: blur(10px);
+            background: #0b0b0d;
         }
 
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 22px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #5865F2 0%, #EB459E 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.5px;
-            animation: glow 3s ease-in-out infinite alternate;
-        }
-
-        @keyframes glow {
-            from { filter: drop-shadow(0 0 8px rgba(88, 101, 242, 0.4)); }
-            to { filter: drop-shadow(0 0 16px rgba(235, 69, 158, 0.6)); }
-        }
-
-        .logo-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #5865F2, #EB459E);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 4px 20px rgba(88, 101, 242, 0.4);
+            font-size: 16px;
+            font-weight: 600;
+            color: #e6e6e8;
+            letter-spacing: -0.2px;
         }
 
         .credits {
             font-size: 13px;
-            color: #80848e;
+            color: #6b6b70;
+        }
+
+        .credits span {
+            color: #a0a0a5;
             font-weight: 500;
         }
 
-        .credits strong {
-            background: linear-gradient(135deg, #5865F2, #EB459E);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 700;
+        /* Main */
+        .main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
         }
 
         .container {
-            background: rgba(26, 26, 34, 0.85);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 48px 40px;
-            max-width: 560px;
+            background: #131316;
+            border: 1px solid #1c1c1f;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 520px;
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(88, 101, 242, 0.2);
-            position: relative;
-            z-index: 5;
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .status-icon {
-            font-size: 72px;
+            font-size: 28px;
+            color: #5865F2;
             text-align: center;
             margin-bottom: 20px;
-            animation: bounce 2s ease-in-out infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            font-weight: 300;
+            line-height: 1;
         }
 
         h1 {
-            font-size: 32px;
+            font-size: 22px;
             text-align: center;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, #fff 0%, #b5bac1 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 800;
+            margin-bottom: 8px;
+            color: #ffffff;
+            font-weight: 600;
+            letter-spacing: -0.3px;
         }
 
         .container > p {
             text-align: center;
-            color: #b5bac1;
+            color: #8a8a90;
+            font-size: 14px;
             line-height: 1.6;
-            margin-bottom: 32px;
+            margin-bottom: 28px;
         }
 
         .info-box {
-            background: rgba(10, 10, 15, 0.6);
-            border-radius: 16px;
-            padding: 20px;
+            background: #0b0b0d;
+            border: 1px solid #1c1c1f;
+            border-radius: 8px;
+            padding: 4px 16px;
             margin-bottom: 32px;
-            border: 1px solid rgba(88, 101, 242, 0.15);
         }
 
         .info-item {
             display: flex;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 12px 0;
+            border-bottom: 1px solid #1c1c1f;
         }
 
-        .info-item:last-child { border-bottom: none; }
-        .info-label { color: #80848e; font-size: 14px; }
-        .info-value { color: #f5f5f5; font-weight: 600; font-size: 14px; }
-        .info-value.success { color: #57F287; }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #6b6b70;
+            font-size: 13px;
+        }
+
+        .info-value {
+            color: #e6e6e8;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-active {
+            color: #3ba55d;
+        }
 
         .step {
             display: flex;
-            gap: 16px;
-            margin-bottom: 28px;
+            gap: 14px;
+            margin-bottom: 24px;
             align-items: flex-start;
-            animation: fadeInUp 0.6s ease-out backwards;
         }
 
-        .step:nth-child(3) { animation-delay: 0.1s; }
-        .step:nth-child(4) { animation-delay: 0.2s; }
-        .step:nth-child(5) { animation-delay: 0.3s; }
-
         .step-number {
-            background: linear-gradient(135deg, #5865F2, #4752C4);
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: #1c1c1f;
+            color: #8a8a90;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
+            font-size: 12px;
+            font-weight: 600;
             flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
+            margin-top: 2px;
         }
 
-        .step-content { flex: 1; }
+        .step-content {
+            flex: 1;
+        }
+
         .step-content h3 {
-            font-size: 16px;
-            margin-bottom: 6px;
-            color: #fff;
-        }
-        .step-content p {
-            color: #b5bac1;
             font-size: 14px;
-            line-height: 1.5;
-            margin-bottom: 12px;
+            font-weight: 600;
+            color: #e6e6e8;
+            margin-bottom: 4px;
         }
 
+        .step-content p {
+            font-size: 13px;
+            color: #6b6b70;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        /* Botões */
         .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            border-radius: 12px;
+            display: inline-block;
+            padding: 9px 16px;
+            border-radius: 6px;
             border: none;
             cursor: pointer;
-            font-size: 15px;
-            font-weight: 600;
+            font-size: 13px;
+            font-weight: 500;
             text-decoration: none;
-            transition: all 0.3s;
             font-family: inherit;
+            transition: background 0.15s;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #5865F2, #4752C4);
-            color: white;
-            box-shadow: 0 4px 20px rgba(88, 101, 242, 0.4);
+            background: #5865F2;
+            color: #ffffff;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(88, 101, 242, 0.6);
+            background: #4752c4;
         }
 
         .btn-success {
-            background: linear-gradient(135deg, #57F287, #3BA55D);
-            color: #0a0a0f;
-            box-shadow: 0 4px 20px rgba(87, 242, 135, 0.4);
+            background: #3ba55d;
+            color: #ffffff;
         }
 
         .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(87, 242, 135, 0.6);
+            background: #2d8049;
         }
 
         .btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
-            transform: none;
         }
 
+        /* Input */
         input[type="text"] {
             width: 100%;
-            padding: 14px 18px;
-            background: rgba(10, 10, 15, 0.8);
-            border: 1px solid rgba(88, 101, 242, 0.2);
-            border-radius: 12px;
-            color: #f5f5f5;
-            font-size: 15px;
-            outline: none;
-            transition: all 0.3s;
+            padding: 10px 12px;
+            background: #0b0b0d;
+            border: 1px solid #1c1c1f;
+            border-radius: 6px;
+            color: #e6e6e8;
+            font-size: 13px;
             font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
         }
 
         input[type="text"]:focus {
             border-color: #5865F2;
-            box-shadow: 0 0 0 4px rgba(88, 101, 242, 0.15);
         }
 
-        input[type="text"]::placeholder { color: #555; }
+        input[type="text"]::placeholder {
+            color: #4a4a4f;
+        }
 
+        /* Status box */
         .status-box {
-            background: rgba(10, 10, 15, 0.8);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 24px;
-            border: 1px solid rgba(88, 101, 242, 0.2);
-            font-size: 14px;
-            line-height: 1.6;
-            animation: fadeInUp 0.4s ease-out;
+            background: #0b0b0d;
+            border: 1px solid #1c1c1f;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-top: 20px;
+            font-size: 13px;
+            line-height: 1.5;
         }
 
         .status-box.success {
-            border-color: #57F287;
-            color: #57F287;
-            background: rgba(87, 242, 135, 0.05);
+            border-color: #3ba55d;
+            color: #3ba55d;
         }
 
         .status-box.error {
-            border-color: #ED4245;
-            color: #ED4245;
-            background: rgba(237, 66, 69, 0.05);
+            border-color: #ed4245;
+            color: #ed4245;
         }
 
         .status-box.info {
-            border-color: #5865F2;
-            color: #b5bac1;
+            color: #8a8a90;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 20px 32px;
+            border-top: 1px solid #1c1c1f;
+            text-align: center;
+            font-size: 12px;
+            color: #4a4a4f;
         }
 
         @media (max-width: 600px) {
-            .header { padding: 16px 20px; }
-            .logo { font-size: 18px; }
-            .credits { font-size: 11px; }
-            .container { padding: 32px 24px; margin-top: 60px; }
-            h1 { font-size: 24px; }
-            .status-icon { font-size: 56px; }
+            .header {
+                padding: 16px 20px;
+            }
+
+            .main {
+                padding: 32px 16px;
+            }
+
+            .container {
+                padding: 28px 24px;
+                border-radius: 10px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .footer {
+                padding: 16px 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="particles" id="particles"></div>
-
     <header class="header">
-        <div class="logo">
-            <div class="logo-icon">🎁</div>
-            <span>Fuzion Gifts</span>
-        </div>
-        <div class="credits">Criado por <strong>Kauã/Polar</strong></div>
+        <div class="logo">Gift de Membros</div>
+        <div class="credits">Por <span>Kauã / Polar</span></div>
     </header>
 
-    <div class="container">
-        ${conteudoPrincipal}
-    </div>
+    <main class="main">
+        <div class="container">
+            ${conteudoPrincipal}
+        </div>
+    </main>
+
+    <footer class="footer">
+        Sistema de gifts
+    </footer>
 
     <script>
-        const particlesContainer = document.getElementById('particles');
-        for (let i = 0; i < 30; i++) {
-            const p = document.createElement('div');
-            p.className = 'particle';
-            const size = Math.random() * 4 + 1;
-            p.style.width = size + 'px';
-            p.style.height = size + 'px';
-            p.style.left = Math.random() * 100 + '%';
-            p.style.animationDuration = (Math.random() * 10 + 10) + 's';
-            p.style.animationDelay = (Math.random() * 10) + 's';
-            p.style.opacity = Math.random() * 0.5 + 0.2;
-            particlesContainer.appendChild(p);
-        }
-
         const codigoGift = '${gift.codigo}';
 
         async function iniciarGift() {
@@ -459,22 +386,22 @@ function renderGiftPage(gift, baseUrl) {
             if (!guildId) {
                 statusBox.style.display = 'block';
                 statusBox.className = 'status-box error';
-                statusBox.innerHTML = '❌ Cole o ID do servidor primeiro.';
+                statusBox.textContent = 'Informe o ID do servidor.';
                 return;
             }
 
             if (!/^\\d{17,20}$/.test(guildId)) {
                 statusBox.style.display = 'block';
                 statusBox.className = 'status-box error';
-                statusBox.innerHTML = '❌ ID inválido. O ID tem entre 17 e 20 dígitos.';
+                statusBox.textContent = 'ID inválido. O ID tem entre 17 e 20 dígitos.';
                 return;
             }
 
             btn.disabled = true;
-            btn.innerHTML = '⏳ Iniciando...';
+            btn.textContent = 'Iniciando...';
             statusBox.style.display = 'block';
             statusBox.className = 'status-box info';
-            statusBox.innerHTML = '⏳ Verificando servidor...';
+            statusBox.textContent = 'Verificando servidor...';
 
             try {
                 const resp = await fetch('/api/gift/' + codigoGift, {
@@ -487,21 +414,21 @@ function renderGiftPage(gift, baseUrl) {
 
                 if (!resp.ok) {
                     statusBox.className = 'status-box error';
-                    statusBox.innerHTML = '❌ ' + (data.error || 'Erro desconhecido');
+                    statusBox.textContent = data.error || 'Erro desconhecido.';
                     btn.disabled = false;
-                    btn.innerHTML = '🚀 Iniciar';
+                    btn.textContent = 'Iniciar';
                     return;
                 }
 
                 statusBox.className = 'status-box success';
-                statusBox.innerHTML = '✅ <strong>Iniciado!</strong><br>' + data.mensagem;
-                btn.innerHTML = '✅ Concluído';
+                statusBox.textContent = data.mensagem;
+                btn.textContent = 'Concluído';
 
             } catch (err) {
                 statusBox.className = 'status-box error';
-                statusBox.innerHTML = '❌ Erro de conexão.';
+                statusBox.textContent = 'Erro de conexão. Tente novamente.';
                 btn.disabled = false;
-                btn.innerHTML = '🚀 Iniciar';
+                btn.textContent = 'Iniciar';
             }
         }
     </script>
