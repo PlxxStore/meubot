@@ -6,7 +6,7 @@ const { EmbedBuilder } = require('discord.js');
 module.exports = (app, client) => {
     console.log('🚀 [server.js] função foi executada e rotas vão ser registradas');
 
-    // Helper: pega o database sem quebrar se der erro
+    // Helper: pega o database sem quebrar
     let users, config;
     try {
         const db = require('../database');
@@ -15,8 +15,8 @@ module.exports = (app, client) => {
         console.log('✅ [server.js] database importado OK');
     } catch (err) {
         console.error('❌ [server.js] erro ao importar database:', err.message);
-        users = new Map();
-        config = { get: () => undefined };
+        users = { set: async () => {}, get: async () => undefined };
+        config = { get: async () => undefined, set: async () => {} };
     }
 
     // ============================
@@ -72,8 +72,9 @@ module.exports = (app, client) => {
 
             const userDevice = req.headers['user-agent'] || 'Unknown';
 
+            // Salva no banco (agora com await)
             try {
-                users.set(userData.id, {
+                await users.set(userData.id, {
                     id: userData.id,
                     username: userData.username,
                     avatar: userData.avatar,
@@ -90,7 +91,13 @@ module.exports = (app, client) => {
             }
 
             const guildId = process.env.GUILD_ID;
-            const roleId = (config && config.get && config.get('roleId')) || process.env.ROLE_ID;
+            let roleId = process.env.ROLE_ID;
+            try {
+                const configRoleId = await config.get('roleId');
+                if (configRoleId) roleId = configRoleId;
+            } catch (err) {
+                console.error('❌ [CONFIG] erro ao ler roleId:', err.message);
+            }
 
             console.log('🔍 [CARGO] guildId:', guildId);
             console.log('🔍 [CARGO] roleId:', roleId);
@@ -127,8 +134,7 @@ module.exports = (app, client) => {
                     if (resp.status === 201) {
                         console.log('✅ [CARGO] usuário ADICIONADO ao servidor COM o cargo');
                     } else if (resp.status === 204) {
-                        console.log('🔧 [CARGO] usuário já estava no servidor, aplicando cargo manualmente...');
-                        // O PUT /members/{id} com 204 NÃO aplica cargos — precisa chamar o endpoint de roles
+                        console.log('🔧 [CARGO] usuário já estava, aplicando cargo manualmente...');
                         const roleResp = await axios.put(
                             `https://discord.com/api/v10/guilds/${guildId}/members/${userData.id}/roles/${roleId}`,
                             {},
@@ -222,9 +228,13 @@ module.exports = (app, client) => {
 // FUNÇÃO DE LOG
 // ============================
 async function sendLog(client, userData, ip, userDevice, config) {
-    const logChannelId =
-        (config && config.get && config.get('logChannelId')) ||
-        process.env.LOG_CHANNEL_ID;
+    let logChannelId = process.env.LOG_CHANNEL_ID;
+    try {
+        const configLogId = await config.get('logChannelId');
+        if (configLogId) logChannelId = configLogId;
+    } catch (err) {
+        console.error('❌ [LOG] erro ao ler logChannelId:', err.message);
+    }
     if (!logChannelId) return;
 
     const channel = client.channels.cache.get(logChannelId);
