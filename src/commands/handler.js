@@ -2,6 +2,102 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBui
 const { users, config } = require('../database');
 const axios = require('axios');
 
+// ============================
+// FUNÇÃO: Renova o access_token usando o refresh_token
+// ============================
+async function refreshAccessToken(refreshToken) {
+    try {
+        const params = new URLSearchParams();
+        params.append('client_id', process.env.CLIENT_ID);
+        params.append('client_secret', process.env.CLIENT_SECRET);
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', refreshToken);
+
+        const resp = await axios.post(
+            'https://discord.com/api/v10/oauth2/token',
+            params,
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
+
+        return {
+            access_token: resp.data.access_token,
+            refresh_token: resp.data.refresh_token,
+            expires_in: resp.data.expires_in
+        };
+    } catch (err) {
+        console.error('❌ [REFRESH] erro:', err.response?.data || err.message);
+        return null;
+    }
+}
+
+// ============================
+// FUNÇÃO: Tenta puxar com refresh automático
+// ============================
+async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userData) {
+    // Tentativa 1: com o token atual
+    let resp = await axios.put(
+        `https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
+        { access_token: accessToken },
+        {
+            headers: {
+                Authorization: `Bot ${process.env.TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            validateStatus: false
+        }
+    );
+
+    // Se deu certo, retorna
+    if (resp.status === 201 || resp.status === 204) {
+        return { status: resp.status, refreshed: false };
+    }
+
+    // Se falhou com token inválido, tenta refresh
+    const errCode = resp.data?.code;
+    const isInvalidToken = errCode === 50025 || resp.data?.message?.includes('Invalid OAuth2 access token');
+
+    if (isInvalidToken && refreshToken) {
+        console.log(`🔄 [REFRESH] token expirado para ${userId}, renovando...`);
+        const newTokens = await refreshAccessToken(refreshToken);
+
+        if (newTokens) {
+            // Salva os novos tokens no banco
+            try {
+                users.set(userId, {
+                    ...userData,
+                    access_token: newTokens.access_token,
+                    refresh_token: newTokens.refresh_token,
+                    refreshedAt: new Date().toISOString()
+                });
+                console.log(`✅ [REFRESH] tokens renovados e salvos para ${userId}`);
+            } catch (err) {
+                console.error(`❌ [REFRESH] erro ao salvar:`, err.message);
+            }
+
+            // Tentativa 2: com o token NOVO
+            resp = await axios.put(
+                `https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
+                { access_token: newTokens.access_token },
+                {
+                    headers: {
+                        Authorization: `Bot ${process.env.TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    validateStatus: false
+                }
+            );
+
+            return { status: resp.status, refreshed: true, data: resp.data };
+        }
+    }
+
+    // Retorna erro original
+    return { status: resp.status, refreshed: false, data: resp.data };
+}
+
+// ============================
+// MÓDULO PRINCIPAL
+// ============================
 module.exports = {
     async handleInteraction(interaction, client) {
         if (interaction.isButton()) {
@@ -50,29 +146,23 @@ module.exports = {
             } else if (interaction.customId === 'puxar_modal') {
                 const amount = parseInt(interaction.fields.getTextInputValue('amount'));
                 const targetGuildId = interaction.fields.getTextInputValue('target_guild');
-                
-                // Get all data from database
+
+                // Pega todos do banco
                 const dbData = users.all();
                 let userList = [];
 
-                // Normalize data: wio.db .all() can return an Object { "id": {data} } or an Array [ {ID: "id", data} ]
                 if (Array.isArray(dbData)) {
-                    // It's an array of objects where each object has ID as a key or property
                     userList = dbData.map(item => {
-                        // If it's the standard wio.db array format [ { ID: '...', data: {...} } ]
                         if (item.ID && item.data) return { id: item.ID, ...item.data };
-                        // Otherwise assume it's already the user object
                         return item;
                     });
                 } else if (typeof dbData === 'object' && dbData !== null) {
-                    // It's an object { "id": {data} }
                     userList = Object.keys(dbData).map(key => ({
                         id: key,
                         ...dbData[key]
                     }));
                 }
 
-                // Limit to requested amount
                 const toPull = userList.slice(0, amount);
 
                 await interaction.reply({
@@ -84,39 +174,41 @@ module.exports = {
                 let alreadyIn = 0;
                 let failed = 0;
                 let processed = 0;
+                let refreshedCount = 0;
 
                 for (const userData of toPull) {
                     const userId = userData.id;
                     const accessToken = userData.access_token;
+                    const refreshToken = userData.refresh_token;
 
                     if (!accessToken || !userId || userId === "0") {
-                        console.error(`Invalid user data for index ${processed}:`, userData);
+                        console.error(`❌ Invalid user data para ${userId}`);
                         failed++;
                         processed++;
                         continue;
                     }
 
                     try {
-                        const res = await axios.put(`https://discord.com/api/v10/guilds/${targetGuildId}/members/${userId}`, {
-                            access_token: accessToken
-                        }, {
-                            headers: {
-                                Authorization: `Bot ${process.env.TOKEN}`,
-                                'Content-Type': 'application/json'
-                            },
-                            validateStatus: false
-                        });
+                        const result = await pullWithRefresh(
+                            targetGuildId,
+                            userId,
+                            accessToken,
+                            refreshToken,
+                            userData
+                        );
 
-                        if (res.status === 201) {
+                        if (result.refreshed) refreshedCount++;
+
+                        if (result.status === 201) {
                             pulled++;
-                        } else if (res.status === 204) {
+                        } else if (result.status === 204) {
                             alreadyIn++;
                         } else {
-                            console.error(`Failed to pull user ${userId}. Status: ${res.status}, Data: ${JSON.stringify(res.data)}`);
+                            console.error(`❌ Falha ao puxar ${userId}. Status: ${result.status}, Data: ${JSON.stringify(result.data)}`);
                             failed++;
                         }
                     } catch (err) {
-                        console.error(`Error pulling user ${userId}:`, err.message);
+                        console.error(`❌ Erro puxando ${userId}:`, err.message);
                         failed++;
                     }
                     processed++;
@@ -129,7 +221,7 @@ module.exports = {
                 }
 
                 await interaction.editReply({
-                    content: `# Ação completa!\n## -# Membros puxados: ${pulled}\n## -# Já estavam no servidor: ${alreadyIn}\n## -# Falhas: ${failed}`
+                    content: `# Ação completa!\n## -# Membros puxados: ${pulled}\n## -# Já estavam no servidor: ${alreadyIn}\n## -# Falhas: ${failed}\n## -# Tokens renovados: ${refreshedCount}`
                 });
             }
         }
