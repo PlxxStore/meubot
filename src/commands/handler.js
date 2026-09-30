@@ -34,7 +34,6 @@ async function refreshAccessToken(refreshToken) {
 // FUNÇÃO: Tenta puxar com refresh automático
 // ============================
 async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userData) {
-    // Tentativa 1: com o token atual
     let resp = await axios.put(
         `https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
         { access_token: accessToken },
@@ -47,12 +46,10 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
         }
     );
 
-    // Se deu certo, retorna
     if (resp.status === 201 || resp.status === 204) {
         return { status: resp.status, refreshed: false };
     }
 
-    // Se falhou com token inválido, tenta refresh
     const errCode = resp.data?.code;
     const isInvalidToken = errCode === 50025 || resp.data?.message?.includes('Invalid OAuth2 access token');
 
@@ -61,9 +58,8 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
         const newTokens = await refreshAccessToken(refreshToken);
 
         if (newTokens) {
-            // Salva os novos tokens no banco
             try {
-                users.set(userId, {
+                await users.set(userId, {
                     ...userData,
                     access_token: newTokens.access_token,
                     refresh_token: newTokens.refresh_token,
@@ -74,7 +70,6 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
                 console.error(`❌ [REFRESH] erro ao salvar:`, err.message);
             }
 
-            // Tentativa 2: com o token NOVO
             resp = await axios.put(
                 `https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
                 { access_token: newTokens.access_token },
@@ -91,7 +86,6 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
         }
     }
 
-    // Retorna erro original
     return { status: resp.status, refreshed: false, data: resp.data };
 }
 
@@ -100,14 +94,7 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
 // ============================
 module.exports = {
     async handleInteraction(interaction, client) {
-        // ============================
-        // BOTÕES
-        // ============================
         if (interaction.isButton()) {
-
-            // Ignora botões do sorteio (tratados no index.js)
-            if (interaction.customId.startsWith('sorteio_')) return;
-
             if (interaction.customId === 'verify_button') {
                 const clientId = process.env.CLIENT_ID;
                 const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
@@ -127,54 +114,35 @@ module.exports = {
                     components: [row],
                     flags: MessageFlags.Ephemeral
                 });
-            }
-
-            else if (interaction.customId === 'config_role') {
+            } else if (interaction.customId === 'config_role') {
                 const modal = new ModalBuilder().setCustomId('modal_role').setTitle('Configurar Cargo');
                 const input = new TextInputBuilder().setCustomId('role_id').setLabel('ID do Cargo').setStyle(TextInputStyle.Short).setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(input));
                 await interaction.showModal(modal);
-            }
-
-            else if (interaction.customId === 'config_logs') {
+            } else if (interaction.customId === 'config_logs') {
                 const modal = new ModalBuilder().setCustomId('modal_logs').setTitle('Configurar Logs');
                 const input = new TextInputBuilder().setCustomId('log_id').setLabel('ID do Canal de Logs').setStyle(TextInputStyle.Short).setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(input));
                 await interaction.showModal(modal);
-            }
-
-            else if (interaction.customId === 'config_puxar') {
+            } else if (interaction.customId === 'config_puxar') {
                 const command = client.commands.get('puxar');
                 if (command) await command.execute(interaction, client);
             }
-        }
-
-        // ============================
-        // MODAIS
-        // ============================
-        else if (interaction.isModalSubmit()) {
-
-            // Ignora modais do sorteio (tratados no index.js)
-            if (interaction.customId.startsWith('sorteio_modal')) return;
-
+        } else if (interaction.isModalSubmit()) {
             if (interaction.customId === 'modal_role') {
                 const roleId = interaction.fields.getTextInputValue('role_id');
-                config.set('roleId', roleId);
+                await config.set('roleId', roleId);
                 await interaction.reply({ content: `Cargo de verificado atualizado para <@&${roleId}>`, flags: MessageFlags.Ephemeral });
-            }
-
-            else if (interaction.customId === 'modal_logs') {
+            } else if (interaction.customId === 'modal_logs') {
                 const logId = interaction.fields.getTextInputValue('log_id');
-                config.set('logChannelId', logId);
+                await config.set('logChannelId', logId);
                 await interaction.reply({ content: `Canal de logs atualizado para <#${logId}>`, flags: MessageFlags.Ephemeral });
-            }
-
-            else if (interaction.customId === 'puxar_modal') {
+            } else if (interaction.customId === 'puxar_modal') {
                 const amount = parseInt(interaction.fields.getTextInputValue('amount'));
                 const targetGuildId = interaction.fields.getTextInputValue('target_guild');
 
-                // Pega todos do banco
-                const dbData = users.all();
+                // Pega todos do banco (agora com await)
+                const dbData = await users.all();
                 let userList = [];
 
                 if (Array.isArray(dbData)) {
