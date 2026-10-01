@@ -59,9 +59,14 @@ module.exports = (app, client) => {
     });
 
     // ============================
-    // PAINEL ADMIN (rotas do painelApi)
+    // PAINEL ADMIN
     // ============================
-    painelApi(app, client, config, users);
+    try {
+        painelApi(app, client, config, users);
+        console.log('✅ [server.js] rotas do painel registradas');
+    } catch (err) {
+        console.error('❌ [server.js] erro ao registrar painel:', err.message);
+    }
 
     // ============================
     // PÁGINA DO GIFT
@@ -126,7 +131,6 @@ module.exports = (app, client) => {
                 return res.status(400).json({ error: 'Esse gift expirou.' });
             }
 
-            // Verifica blacklist
             const bloqueados = (await config.get('giftBlockList')) || {};
             if (bloqueados[guildId]) {
                 console.log(`🚫 [GIFT] servidor bloqueado: ${guildId}`);
@@ -152,7 +156,6 @@ module.exports = (app, client) => {
                 });
             }
 
-            // Se o gift tem selecionados, filtra
             let toPull;
             if (gift.selecionados && gift.selecionados.length > 0) {
                 toPull = userList.filter(u => gift.selecionados.includes(u.id));
