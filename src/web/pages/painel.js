@@ -637,4 +637,218 @@ function renderPainel() {
         // ============================
         // DELETAR GIFT
         // ============================
-        async function carreg
+        async function carregarGifts() {
+            try {
+                const resp = await api('/api/painel/gifts');
+                GIFTS_CACHE = await resp.json();
+                renderGifts();
+            } catch (err) {
+                toast('Erro ao carregar gifts', 'erro');
+            }
+        }
+
+        function renderGifts() {
+            const tbody = document.getElementById('tabelaGifts');
+            if (GIFTS_CACHE.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#8a8f99">Nenhum gift</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = GIFTS_CACHE.map(g => {
+                const expirado = Date.now() > g.expiresAt;
+                let statusBadge = '<span class="badge success">Ativo</span>';
+                if (g.status === 'esgotado') statusBadge = '<span class="badge danger">Esgotado</span>';
+                else if (expirado) statusBadge = '<span class="badge warning">Expirado</span>';
+
+                return \`
+                    <tr>
+                        <td><code>\${g.codigo}</code></td>
+                        <td>\${g.quantidade}</td>
+                        <td>\${statusBadge}</td>
+                        <td>\${g.expiresAt ? formatarData(new Date(g.expiresAt).toISOString()) : 'Nunca'}</td>
+                        <td><button class="btn-acao danger" onclick="deletarGift('\${g.codigo}')">Deletar</button></td>
+                    </tr>
+                \`;
+            }).join('');
+        }
+
+        async function deletarGift(codigo) {
+            if (!confirm('Deletar o gift ' + codigo + '?')) return;
+            try {
+                const resp = await api('/api/painel/gifts/' + codigo, { method: 'DELETE' });
+                if (resp.ok) {
+                    toast('Gift deletado!');
+                    carregarGifts();
+                } else {
+                    toast('Erro ao deletar', 'erro');
+                }
+            } catch (err) {
+                toast('Erro de conexão', 'erro');
+            }
+        }
+
+        // ============================
+        // PUXAR
+        // ============================
+        async function puxarMembros() {
+            const guildId = document.getElementById('puxarGuildId').value.trim();
+            const quantidade = parseInt(document.getElementById('puxarQuantidade').value) || 0;
+            const btn = document.getElementById('btnPuxar');
+            const resultado = document.getElementById('resultadoPuxar');
+
+            if (!/^\\d{17,20}$/.test(guildId)) {
+                toast('ID do servidor inválido', 'erro');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Puxando...';
+            resultado.innerHTML = '<div class="resultado-box">🔄 Puxando membros...</div>';
+
+            try {
+                const resp = await api('/api/painel/puxar', {
+                    method: 'POST',
+                    body: JSON.stringify({ guildId, quantidade })
+                });
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    resultado.innerHTML = \`<div class="resultado-box erro">❌ \${data.error}</div>\`;
+                } else {
+                    resultado.innerHTML = \`<div class="resultado-box sucesso">✅ \${data.mensagem}</div>\`;
+                }
+            } catch (err) {
+                resultado.innerHTML = '<div class="resultado-box erro">❌ Erro de conexão</div>';
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Puxar Membros';
+        }
+
+        // ============================
+        // SERVIDORES
+        // ============================
+        async function carregarServidores() {
+            try {
+                const resp = await api('/api/painel/servers');
+                const data = await resp.json();
+                const tbody = document.getElementById('tabelaServidores');
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#8a8f99">Nenhum servidor</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(s => \`
+                    <tr>
+                        <td><strong>\${s.nome}</strong></td>
+                        <td><code>\${s.id}</code></td>
+                        <td class="ocultar-mobile">\${s.membros}</td>
+                        <td class="ocultar-mobile">\${s.dono}</td>
+                    </tr>
+                \`).join('');
+            } catch (err) {
+                toast('Erro ao carregar servidores', 'erro');
+            }
+        }
+
+        // ============================
+        // LOGS
+        // ============================
+        async function carregarLogs() {
+            try {
+                const resp = await api('/api/painel/logs');
+                LOGS_CACHE = await resp.json();
+                renderLogs(LOGS_CACHE);
+            } catch (err) {
+                toast('Erro ao carregar logs', 'erro');
+            }
+        }
+
+        function renderLogs(logs) {
+            const tbody = document.getElementById('tabelaLogs');
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#8a8f99">Nenhum log</td></tr>';
+                return;
+            }
+
+            const cores = {
+                'entrou': 'success', 'saiu': 'warning', 'ban': 'danger',
+                'kick': 'danger', 'mute': 'warning', 'unmute': 'success',
+                'verificacao': 'success', 'gift': 'warning'
+            };
+
+            tbody.innerHTML = logs.slice(0, 100).map(l => \`
+                <tr>
+                    <td>\${formatarData(l.data)}</td>
+                    <td><span class="badge \${cores[l.tipo] || ''}">\${l.tipo}</span></td>
+                    <td>\${l.usuario || '-'}</td>
+                    <td class="ocultar-mobile">\${l.detalhes || '-'}</td>
+                </tr>
+            \`).join('');
+        }
+
+        function filtrarLogs() {
+            const filtro = document.getElementById('filtroLogs').value;
+            if (filtro === 'todos') return renderLogs(LOGS_CACHE);
+            renderLogs(LOGS_CACHE.filter(l => l.tipo === filtro));
+        }
+
+        // ============================
+        // CONFIG
+        // ============================
+        async function carregarConfig() {
+            try {
+                const resp = await api('/api/painel/config');
+                const data = await resp.json();
+                document.getElementById('cfgLogChannel').value = data.logChannelId || '';
+                document.getElementById('cfgGiftLogChannel').value = data.giftLogChannelId || '';
+                document.getElementById('cfgRoleId').value = data.roleId || '';
+            } catch (err) {}
+        }
+
+        async function salvarConfig() {
+            const logChannelId = document.getElementById('cfgLogChannel').value.trim();
+            const giftLogChannelId = document.getElementById('cfgGiftLogChannel').value.trim();
+            const roleId = document.getElementById('cfgRoleId').value.trim();
+            const btn = document.getElementById('btnSalvarConfig');
+
+            btn.disabled = true;
+            btn.textContent = 'Salvando...';
+
+            try {
+                const resp = await api('/api/painel/config', {
+                    method: 'POST',
+                    body: JSON.stringify({ logChannelId, giftLogChannelId, roleId })
+                });
+                if (resp.ok) {
+                    toast('Configurações salvas!');
+                } else {
+                    toast('Erro ao salvar', 'erro');
+                }
+            } catch (err) {
+                toast('Erro de conexão', 'erro');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Salvar';
+        }
+
+        // ============================
+        // AUTO-LOGIN
+        // ============================
+        if (TOKEN) abrirApp();
+
+        // Enter no login
+        document.getElementById('loginSenha').addEventListener('keypress', e => {
+            if (e.key === 'Enter') fazerLogin();
+        });
+        document.getElementById('loginUsuario').addEventListener('keypress', e => {
+            if (e.key === 'Enter') fazerLogin();
+        });
+    </script>
+</body>
+</html>`;
+}
+
+module.exports = { renderPainel };
