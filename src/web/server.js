@@ -3,6 +3,7 @@ console.log('🚀 [server.js] arquivo foi carregado');
 const axios = require('axios');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { renderGiftPage } = require('./giftPage');
+const painel = require('./painel');
 
 module.exports = (app, client) => {
     console.log('🚀 [server.js] função foi executada');
@@ -56,6 +57,16 @@ module.exports = (app, client) => {
         const url = 'https://discord.com/oauth2/authorize?client_id=' + clientId + '&permissions=' + perms + '&scope=bot%20applications.commands';
         res.redirect(url);
     });
+
+    // ============================
+    // PAINEL ADMIN
+    // ============================
+    try {
+        painel(app, client, config, users);
+        console.log('✅ [server.js] rotas do painel registradas');
+    } catch (err) {
+        console.error('❌ [server.js] erro ao registrar painel:', err.message);
+    }
 
     // ============================
     // PÁGINA DO GIFT
