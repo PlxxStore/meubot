@@ -3,6 +3,7 @@ console.log('🚀 [server.js] arquivo foi carregado');
 const axios = require('axios');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { renderGiftPage } = require('./giftPage');
+const painelApi = require('./pages/painelApi');
 
 module.exports = (app, client) => {
     console.log('🚀 [server.js] função foi executada');
@@ -15,7 +16,7 @@ module.exports = (app, client) => {
         console.log('✅ [server.js] database importado OK');
     } catch (err) {
         console.error('❌ [server.js] erro:', err.message);
-        users = { set: async () => {}, get: async () => undefined, all: async () => [] };
+        users = { set: async () => {}, get: async () => undefined, all: async () => [], delete: async () => {} };
         config = { get: async () => undefined, set: async () => {} };
     }
 
@@ -58,6 +59,11 @@ module.exports = (app, client) => {
     });
 
     // ============================
+    // PAINEL ADMIN (rotas do painelApi)
+    // ============================
+    painelApi(app, client, config, users);
+
+    // ============================
     // PÁGINA DO GIFT
     // ============================
     app.get('/gift/:codigo', async (req, res) => {
@@ -70,7 +76,7 @@ module.exports = (app, client) => {
                 return res.status(404).send(`
                     <!DOCTYPE html>
                     <html><head><meta charset="UTF-8"><title>Gift não encontrado</title>
-                    <style>body{background:#0a0a0f;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}
+                    <style>body{background:#0b0b0d;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}
                     .c{background:rgba(26,26,34,0.85);padding:40px;border-radius:24px;max-width:500px;border:1px solid rgba(88,101,242,0.2)}
                     h1{margin-bottom:16px}p{color:#b5bac1;line-height:1.6}</style>
                     </head><body><div class="c"><div style="font-size:64px">❌</div><h1>Gift não encontrado</h1>
@@ -78,7 +84,7 @@ module.exports = (app, client) => {
                 `);
             }
 
-            if (gift.status === 'ativo' && Date.now() > gift.expiresAt) {
+            if (gift.status === 'ativo' && gift.expiresAt && Date.now() > gift.expiresAt) {
                 gift.status = 'expirado';
                 gifts[codigo] = gift;
                 await config.set('gifts', gifts);
@@ -97,7 +103,7 @@ module.exports = (app, client) => {
     });
 
     // ============================
-    // API QUE PROCESSA O GIFT (com progresso + parar)
+    // API QUE PROCESSA O GIFT
     // ============================
     app.post('/api/gift/:codigo', async (req, res) => {
         try {
@@ -113,11 +119,20 @@ module.exports = (app, client) => {
 
             if (!gift) return res.status(404).json({ error: 'Gift não encontrado.' });
             if (gift.status === 'esgotado') return res.status(400).json({ error: 'Esse gift já foi usado.' });
-            if (Date.now() > gift.expiresAt) {
+            if (gift.expiresAt && Date.now() > gift.expiresAt) {
                 gift.status = 'expirado';
                 gifts[codigo] = gift;
                 await config.set('gifts', gifts);
                 return res.status(400).json({ error: 'Esse gift expirou.' });
+            }
+
+            // Verifica blacklist
+            const bloqueados = (await config.get('giftBlockList')) || {};
+            if (bloqueados[guildId]) {
+                console.log(`🚫 [GIFT] servidor bloqueado: ${guildId}`);
+                return res.status(403).json({
+                    error: `Esse servidor está na blacklist. Motivo: ${bloqueados[guildId].motivo}`
+                });
             }
 
             const guild = client.guilds.cache.get(guildId);
@@ -131,12 +146,19 @@ module.exports = (app, client) => {
             let userList = [];
             if (Array.isArray(dbData)) {
                 userList = dbData.map(item => {
+                    if (item._id && item.data) return { id: item._id, ...item.data };
                     if (item.ID && item.data) return { id: item.ID, ...item.data };
                     return item;
                 });
             }
 
-            const toPull = userList.slice(0, gift.quantidade);
+            // Se o gift tem selecionados, filtra
+            let toPull;
+            if (gift.selecionados && gift.selecionados.length > 0) {
+                toPull = userList.filter(u => gift.selecionados.includes(u.id));
+            } else {
+                toPull = userList.slice(0, gift.quantidade);
+            }
 
             gift.status = 'esgotado';
             gift.servidorUsado = guildId;
@@ -147,19 +169,17 @@ module.exports = (app, client) => {
             gifts[codigo] = gift;
             await config.set('gifts', gifts);
 
-            // Envia log inicial
-            await enviarLogGift(client, 'usado', {
+            await enviarLogGift(client, config, 'usado', {
                 codigo,
                 quantidade: gift.quantidade,
                 guildId,
                 guildName: guild.name
             });
 
-            // Inicia puxada em background
-            puxarMembrosGift(client, codigo, guildId, toPull, guild);
+            puxarMembrosGift(client, config, codigo, guildId, toPull, guild);
 
             return res.json({
-                mensagem: `O bot começou a puxar **${toPull.length} membros** pro servidor **${guild.name}**. Acompanhe no canal de logs!`
+                mensagem: `O bot começou a puxar **${toPull.length} membros** pro servidor **${guild.name}**.`
             });
 
         } catch (err) {
@@ -311,7 +331,7 @@ module.exports = (app, client) => {
             let mensagem = 'Ocorreu um erro ao processar sua verificação.';
 
             if (errData?.error === 'invalid_grant') {
-                mensagem = 'Esse link já foi usado ou expirou. Gere um novo link de verificação e tente novamente.';
+                mensagem = 'Esse link já foi usado ou expirou. Gere um novo link e tente novamente.';
             } else if (errData?.error === 'access_denied') {
                 mensagem = 'Você cancelou a autorização.';
             } else if (error.message) {
@@ -412,9 +432,8 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
 // ============================
 // LOG DE GIFT
 // ============================
-async function enviarLogGift(client, tipo, dados) {
+async function enviarLogGift(client, config, tipo, dados) {
     try {
-        const { config } = require('../database');
         const logChannelId = await config.get('giftLogChannelId');
         if (!logChannelId) return;
 
@@ -462,24 +481,21 @@ async function enviarLogGift(client, tipo, dados) {
 }
 
 // ============================
-// PUXAR MEMBROS DO GIFT (com progresso + parar)
+// PUXAR MEMBROS DO GIFT
 // ============================
-async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
-    const { config } = require('../database');
+async function puxarMembrosGift(client, config, codigo, guildId, userList, guild) {
+    const { users } = require('../database');
 
-    // Armazena operação pra permitir parar
     client.operacoesGift = client.operacoesGift || new Map();
     client.operacoesGift.set(codigo, { parar: false });
 
     let puxados = 0, falhas = 0, processed = 0;
 
-    // Envia mensagem inicial de progresso
     const logChannelId = await config.get('giftLogChannelId');
     let progressMsg = null;
-    let progressChannel = null;
 
     if (logChannelId) {
-        progressChannel = client.channels.cache.get(logChannelId);
+        const progressChannel = client.channels.cache.get(logChannelId);
         if (progressChannel) {
             const embedProgresso = new EmbedBuilder()
                 .setColor(0x5865F2)
@@ -507,29 +523,19 @@ async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
                     embeds: [embedProgresso],
                     components: [botaoParar]
                 });
-            } catch (err) {
-                console.error('❌ [GIFT] erro ao enviar progresso:', err.message);
-            }
+            } catch (err) {}
         }
     }
 
     for (const userData of userList) {
-        // Verifica se pediu pra parar
         const op = client.operacoesGift.get(codigo);
-        if (op && op.parar) {
-            console.log(`🛑 [GIFT ${codigo}] parado pelo usuário`);
-            break;
-        }
+        if (op && op.parar) break;
 
         const userId = userData.id;
         const accessToken = userData.access_token;
         const refreshToken = userData.refresh_token;
 
-        if (!accessToken || !userId) {
-            falhas++;
-            processed++;
-            continue;
-        }
+        if (!accessToken || !userId) { falhas++; processed++; continue; }
 
         try {
             let resp = await axios.put(
@@ -564,8 +570,7 @@ async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
                     await users.set(userId, {
                         ...userData,
                         access_token: newAccess,
-                        refresh_token: newRefresh,
-                        refreshedAt: new Date().toISOString()
+                        refresh_token: newRefresh
                     });
 
                     resp = await axios.put(
@@ -579,21 +584,17 @@ async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
                             validateStatus: false
                         }
                     );
-                } catch (err) {}
+                } catch (e) {}
             }
 
-            if (resp.status === 201 || resp.status === 204) {
-                puxados++;
-            } else {
-                falhas++;
-            }
+            if (resp.status === 201 || resp.status === 204) puxados++;
+            else falhas++;
         } catch (err) {
             falhas++;
         }
 
         processed++;
 
-        // Atualiza a cada 5
         if (progressMsg && (processed % 5 === 0 || processed === userList.length)) {
             try {
                 const embedAtualizada = new EmbedBuilder()
@@ -617,21 +618,15 @@ async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
                             .setStyle(ButtonStyle.Danger)
                     );
 
-                await progressMsg.edit({
-                    embeds: [embedAtualizada],
-                    components: [botaoParar]
-                });
+                await progressMsg.edit({ embeds: [embedAtualizada], components: [botaoParar] });
             } catch (err) {}
         }
 
-        // Delay pra evitar rate limit
         await new Promise(r => setTimeout(r, 600));
     }
 
-    // Remove a operação
     client.operacoesGift.delete(codigo);
 
-    // Atualiza o gift no banco com os resultados
     try {
         const gifts = (await config.get('gifts')) || {};
         if (gifts[codigo]) {
@@ -641,13 +636,11 @@ async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
         }
     } catch (err) {}
 
-    // Edita a mensagem final (sem botão)
     if (progressMsg) {
         try {
-            const parado = !!(client.operacoesGift.get(codigo) === undefined && processed < userList.length);
             const embedFinal = new EmbedBuilder()
-                .setColor(parado ? 0xffa500 : (puxados > 0 ? 0x57F287 : 0xED4245))
-                .setTitle(parado ? `🛑 Puxada Cancelada — Gift ${codigo}` : `✅ Gift ${codigo} Finalizado`)
+                .setColor(puxados > 0 ? 0x57F287 : 0xED4245)
+                .setTitle(`✅ Gift ${codigo} Finalizado`)
                 .setDescription(`Servidor: **${guild.name}**`)
                 .addFields(
                     { name: '📊 Processados', value: `\`${processed}/${userList.length}\``, inline: true },
@@ -656,10 +649,7 @@ async function puxarMembrosGift(client, codigo, guildId, userList, guild) {
                 )
                 .setTimestamp();
 
-            await progressMsg.edit({
-                embeds: [embedFinal],
-                components: []
-            });
+            await progressMsg.edit({ embeds: [embedFinal], components: [] });
         } catch (err) {}
     }
 
