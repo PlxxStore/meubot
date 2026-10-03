@@ -17,25 +17,20 @@ module.exports = function(app, client, config, users) {
         const senha = body.senha;
         const captcha = body.captcha;
         const ip = req.ip || 'desconhecido';
-
         const agora = Date.now();
         const reg = tentativas.get(ip) || { count: 0, primeira: agora };
         if (agora - reg.primeira > 60000) { reg.count = 0; reg.primeira = agora; }
         reg.count++;
         tentativas.set(ip, reg);
-
         if (reg.count > 5) return res.status(429).json({ error: 'Muitas tentativas. Aguarde 1 minuto.' });
         if (!usuario || !senha) return res.status(400).json({ error: 'Preencha usuário e senha.' });
         if (!captcha) return res.status(400).json({ error: 'Marque "Sou humano".' });
-
         let ok1 = false, ok2 = false;
         try {
             ok1 = crypto.timingSafeEqual(Buffer.from(String(usuario).padEnd(64, ' ')), Buffer.from(USUARIO.padEnd(64, ' ')));
             ok2 = crypto.timingSafeEqual(Buffer.from(String(senha).padEnd(64, ' ')), Buffer.from(SENHA.padEnd(64, ' ')));
         } catch (e) {}
-
         if (!ok1 || !ok2) return res.status(401).json({ error: 'Usuário ou senha inválidos.' });
-
         const token = gerarToken();
         const csrf = crypto.randomBytes(16).toString('hex');
         const expiraEm = Date.now() + (24 * 60 * 60 * 1000);
@@ -162,7 +157,14 @@ module.exports = function(app, client, config, users) {
     });
 
     app.delete('/api/painel/gifts/:codigo', checkAuth, async (req, res) => {
-        try { const codigo = req.params.codigo; const gifts = (await config.get('gifts')) || {}; if (!gifts[codigo]) return res.status(404).json({ error: 'Não encontrado.' }); delete gifts[codigo]; await config.set('gifts', gifts); res.json({ ok: true }); } catch (err) { res.status(500).json({ error: err.message }); }
+        try {
+            const codigo = req.params.codigo;
+            const gifts = (await config.get('gifts')) || {};
+            if (!gifts[codigo]) return res.status(404).json({ error: 'Gift não encontrado.' });
+            delete gifts[codigo];
+            await config.set('gifts', gifts);
+            res.json({ ok: true });
+        } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
     app.post('/api/painel/puxar', checkAuth, async (req, res) => {
@@ -225,11 +227,9 @@ function getPainelHTML() {
     h += '*{margin:0;padding:0;box-sizing:border-box}';
     h += 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:rgb(10,10,12);color:rgb(212,212,216);min-height:100vh;overflow-x:hidden}';
     h += 'body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;background-image:linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0}';
-
-    // LOGIN
     h += '.login-container{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px 20px;position:relative;z-index:1;flex-direction:column}';
     h += '.login-wrapper{max-width:520px;width:100%}';
-    h += '.handwritten{font-family:"Brush Script MT","Segoe Script",cursive;color:rgb(74,222,128);font-size:22px;font-style:italic;transform:rotate(-3deg);display:inline-block;margin-bottom:8px;letter-spacing:-0.5px}';
+    h += '.handwritten{font-family:"Brush Script MT","Segoe Script",cursive;color:rgb(74,222,128);font-size:22px;font-style:italic;transform:rotate(-3deg);display:inline-block;margin-bottom:8px}';
     h += '.handwritten .arrow{font-size:20px;margin-left:4px;display:inline-block;transform:rotate(15deg)}';
     h += '.login-title{font-size:42px;font-weight:700;color:rgb(244,244,245);letter-spacing:-1.5px;line-height:1.1;margin-bottom:20px}';
     h += '.login-subtitle{font-size:13.5px;color:rgb(113,113,122);line-height:1.6;margin-bottom:32px;max-width:480px}';
@@ -245,13 +245,13 @@ function getPainelHTML() {
     h += '.input-wrapper input:hover{border-color:rgb(40,40,45)}';
     h += '.input-wrapper input:focus{border-color:rgb(59,130,246);background:rgb(13,13,16);box-shadow:0 0 0 3px rgba(59,130,246,0.1)}';
     h += '.input-wrapper input::placeholder{color:rgb(63,63,70)}';
-    h += '.btn-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:rgb(113,113,122);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;transition:color 0.2s}';
+    h += '.btn-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:rgb(113,113,122);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center}';
     h += '.btn-eye:hover{color:rgb(228,228,231)}';
     h += '.btn-eye svg{width:18px;height:18px}';
     h += '.captcha-box{display:flex;align-items:center;gap:14px;padding:16px;background:rgb(10,10,12);border:1px solid rgb(28,28,32);border-radius:9px;margin-bottom:20px;transition:border-color 0.2s;cursor:pointer}';
     h += '.captcha-box:hover{border-color:rgb(40,40,45)}';
     h += '.captcha-box.checked{border-color:rgb(59,130,246)}';
-    h += '.captcha-check{width:24px;height:24px;border:2px solid rgb(63,63,70);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;position:relative}';
+    h += '.captcha-check{width:24px;height:24px;border:2px solid rgb(63,63,70);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s}';
     h += '.captcha-box.checked .captcha-check{background:rgb(59,130,246);border-color:rgb(59,130,246)}';
     h += '.captcha-check svg{width:14px;height:14px;color:white;opacity:0;transform:scale(0.5);transition:all 0.2s}';
     h += '.captcha-box.checked .captcha-check svg{opacity:1;transform:scale(1)}';
@@ -261,11 +261,9 @@ function getPainelHTML() {
     h += '.captcha-brand .brand-name svg{width:12px;height:12px}';
     h += '.captcha-brand .links{display:flex;gap:6px;justify-content:flex-end;font-size:8px}';
     h += '.captcha-brand .links a{color:rgb(113,113,122);text-decoration:none}';
-    h += '.captcha-brand .links a:hover{color:rgb(161,161,170)}';
-    h += '.btn-entrar{width:100%;padding:16px;background:rgb(244,244,245);color:rgb(10,10,12);border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-0.2px}';
+    h += '.btn-entrar{width:100%;padding:16px;background:rgb(244,244,245);color:rgb(10,10,12);border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px}';
     h += '.btn-entrar:hover{background:rgb(255,255,255);transform:translateY(-1px);box-shadow:0 8px 20px rgba(255,255,255,0.1)}';
-    h += '.btn-entrar:active{transform:translateY(0)}';
-    h += '.btn-entrar:disabled{opacity:0.5;cursor:not-allowed;transform:none}';
+    h += '.btn-entrar:disabled{opacity:0.5;cursor:not-allowed}';
     h += '.btn-entrar .arrow{font-size:18px;transition:transform 0.2s}';
     h += '.btn-entrar:hover .arrow{transform:translateX(4px)}';
     h += '.btn-voltar{width:100%;padding:14px;background:transparent;color:rgb(161,161,170);border:1px solid rgb(28,28,32);border-radius:10px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.2s;margin-top:12px;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px}';
@@ -273,8 +271,6 @@ function getPainelHTML() {
     h += '.login-footer{margin-top:32px;text-align:center;font-size:10.5px;color:rgb(82,82,91);text-transform:uppercase;letter-spacing:2px;font-weight:600}';
     h += '.login-footer span{margin:0 8px;opacity:0.5}';
     h += '.login-erro{color:rgb(248,113,113);font-size:12.5px;margin-top:14px;text-align:center;min-height:18px}';
-
-    // APP
     h += '.app{display:none;min-height:100vh;position:relative;z-index:1}';
     h += '.app.ativo{display:flex;animation:fadeIn 0.4s ease}';
     h += '@keyframes fadeIn{from{opacity:0}to{opacity:1}}';
@@ -318,7 +314,7 @@ function getPainelHTML() {
     h += '.btn-info:hover{background:rgb(20,26,32);color:rgb(96,165,250);border-color:rgb(30,58,138)}';
     h += '.btn-primary{padding:10px 20px;background:rgb(26,26,30);color:rgb(228,228,231);border:1px solid rgb(38,38,43);border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.2s}';
     h += '.btn-primary:hover{background:rgb(32,32,36);border-color:rgb(63,63,70);transform:translateY(-1px)}';
-    h += '.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}';
+    h += '.btn-primary:disabled{opacity:0.4;cursor:not-allowed}';
     h += '.form-group{margin-bottom:16px}';
     h += '.form-group label{display:block;font-size:12.5px;color:rgb(113,113,122);margin-bottom:6px}';
     h += '.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;background:rgb(10,10,12);border:1px solid rgb(29,29,32);border-radius:6px;color:rgb(228,228,231);font-size:13px;outline:none;font-family:inherit;transition:all 0.2s}';
@@ -339,9 +335,10 @@ function getPainelHTML() {
     h += '.menu-toggle{display:none;position:fixed;top:16px;left:16px;z-index:1000;background:rgb(17,17,20);border:1px solid rgb(29,29,32);color:rgb(228,228,231);padding:10px 14px;border-radius:8px;cursor:pointer;font-size:16px}';
     h += '.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(4px)}';
     h += '.modal-overlay.ativo{display:flex}';
-    h += '.modal{background:rgb(17,17,20);border:1px solid rgb(38,38,43);border-radius:12px;padding:28px;max-width:600px;width:100%;max-height:80vh;overflow-y:auto}';
+    h += '.modal{background:rgb(17,17,20);border:1px solid rgb(38,38,43);border-radius:12px;padding:28px;max-width:600px;width:100%;max-height:80vh;overflow-y:auto;position:relative}';
     h += '.modal h2{font-size:18px;color:rgb(244,244,245);margin-bottom:20px;font-weight:600}';
-    h += '.modal-close{position:absolute;top:16px;right:16px;background:transparent;border:none;color:rgb(113,113,122);font-size:20px;cursor:pointer;padding:4px 8px}';
+    h += '.modal-close{position:absolute;top:16px;right:16px;background:transparent;border:none;color:rgb(113,113,122);font-size:24px;cursor:pointer;padding:4px 8px;line-height:1}';
+    h += '.modal-close:hover{color:rgb(228,228,231)}';
     h += '.membros-list{max-height:300px;overflow-y:auto;border:1px solid rgb(29,29,32);border-radius:8px;padding:8px;background:rgb(10,10,12)}';
     h += '.membro-item{display:flex;align-items:center;gap:10px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.15s}';
     h += '.membro-item:hover{background:rgb(22,22,26)}';
@@ -405,7 +402,7 @@ function getPainelHTML() {
     h += '<div class="pagina" id="pagina-bot"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:20px;font-size:15px;color:rgb(228,228,231)">Personalização do Bot</h2><div class="form-group"><label>Nome do Bot</label><input type="text" id="botUsername" maxlength="32"><small>Limite: 2 mudanças por hora</small></div><button class="btn-primary" onclick="salvarUsername()" id="btnUsername">Salvar Nome</button><div id="resultadoUsername"></div><div style="margin-top:32px;padding-top:24px;border-top:1px solid rgb(29,29,32)"><div class="form-group"><label>Avatar (URL)</label><input type="text" id="botAvatar"><small>Limite: 2 mudanças por hora</small></div><button class="btn-primary" onclick="salvarAvatar()" id="btnAvatar">Salvar Avatar</button><div id="resultadoAvatar"></div></div><div style="margin-top:32px;padding-top:24px;border-top:1px solid rgb(29,29,32)"><h3 style="margin-bottom:16px;font-size:14px;color:rgb(228,228,231)">Status</h3><div class="form-group"><label>Tipo</label><select id="botStatusTipo"><option value="Jogando">Jogando</option><option value="Ouvindo">Ouvindo</option><option value="Assistindo">Assistindo</option><option value="Competindo">Competindo</option></select></div><div class="form-group"><label>Texto</label><input type="text" id="botStatusTexto" maxlength="128"></div><div class="form-group"><label>Status online</label><select id="botStatusOnline"><option value="online">Online</option><option value="idle">Ausente</option><option value="dnd">Não perturbe</option><option value="invisible">Invisível</option></select></div><button class="btn-primary" onclick="salvarStatus()" id="btnStatus">Salvar Status</button><div id="resultadoStatus"></div></div></div></div>';
     h += '<div class="pagina" id="pagina-config"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:20px;font-size:15px;color:rgb(228,228,231)">Configurações</h2><div class="form-group"><label>Canal de logs de verificação</label><input type="text" id="cfgLogChannel"></div><div class="form-group"><label>Canal de logs de gift</label><input type="text" id="cfgGiftLogChannel"></div><div class="form-group"><label>Cargo de verificado</label><input type="text" id="cfgRoleId"></div><button class="btn-primary" onclick="salvarConfig()" id="btnSalvarConfig">Salvar</button><div id="resultadoConfig"></div></div></div>';
     h += '</main></div>';
-    h += '<div class="modal-overlay" id="modalInfo"><div class="modal" style="position:relative"><button class="modal-close" onclick="fecharModal()">×</button><h2>Informações do Gift</h2><div id="modalInfoContent"></div></div></div>';
+    h += '<div class="modal-overlay" id="modalInfo"><div class="modal"><button class="modal-close" onclick="fecharModal()">×</button><h2>Informações do Gift</h2><div id="modalInfoContent"></div></div></div>';
     h += '<div class="toast" id="toast"></div>';
 
     h += '<script>';
@@ -420,12 +417,16 @@ function getPainelHTML() {
     h += 'function abrirApp(){document.getElementById("loginContainer").style.display="none";document.getElementById("app").classList.add("ativo");carregarStats();}';
     h += 'function mostrarPagina(p){document.querySelectorAll(".pagina").forEach(function(x){x.classList.remove("ativo");});document.querySelectorAll(".nav-item").forEach(function(n){n.classList.remove("ativo");});document.getElementById("pagina-"+p).classList.add("ativo");document.querySelector("[data-pagina=\\""+p+"\\"]").classList.add("ativo");var t={dashboard:"Dashboard",verificados:"Verificados",buscar:"Buscar","criar-gift":"Criar Gift","deletar-gift":"Gerenciar Gifts",puxar:"Puxar",servidores:"Servidores",logs:"Logs",bot:"Bot",config:"Config"};document.getElementById("tituloPagina").textContent=t[p]||"";if(p==="verificados")carregarVerificados();if(p==="deletar-gift")carregarGifts();if(p==="servidores")carregarServidores();if(p==="logs")carregarLogs();if(p==="config")carregarConfig();if(p==="criar-gift")carregarMembrosGift();if(p==="bot")carregarBotInfo();if(p==="buscar"){document.getElementById("resultadoBuscar").innerHTML="";}document.getElementById("sidebar").classList.remove("aberto");}';
     h += 'function toggleSidebar(){document.getElementById("sidebar").classList.toggle("aberto");}';
+
     h += 'async function carregarStats(){try{var r=await api("/api/painel/stats");var d=await r.json();document.getElementById("cardsStats").innerHTML="<div class=\\"card\\"><div class=\\"card-label\\">Verificados</div><div class=\\"card-value primary\\">"+d.total+"</div></div><div class=\\"card\\"><div class=\\"card-label\\">Gifts Ativos</div><div class=\\"card-value success\\">"+d.giftsAtivos+"</div></div><div class=\\"card\\"><div class=\\"card-label\\">Gifts Usados</div><div class=\\"card-value warning\\">"+d.giftsUsados+"</div></div><div class=\\"card\\"><div class=\\"card-label\\">Servidores</div><div class=\\"card-value\\">"+d.servidores+"</div></div>";document.getElementById("topCidades").innerHTML=(d.topCidades||[]).map(function(c,i){return "<tr><td>"+(i+1)+"</td><td>"+c.cidade+"</td><td>"+c.count+"</td></tr>";}).join("")||"<tr><td colspan=\\"3\\" style=\\"text-align:center;color:rgb(82,82,91)\\">Sem dados</td></tr>";}catch(e){}}';
+
     h += 'async function carregarVerificados(){try{var r=await api("/api/painel/users");USUARIOS_CACHE=await r.json();renderVerificados(USUARIOS_CACHE);}catch(e){}}';
     h += 'function renderVerificados(users){document.getElementById("totalVerificados").textContent=users.length;var t=document.getElementById("tabelaVerificados");if(users.length===0){t.innerHTML="<tr><td colspan=\\"6\\" style=\\"text-align:center;color:rgb(82,82,91)\\">Nenhum</td></tr>";return;}t.innerHTML=users.map(function(u){var a=u.avatar?"https://cdn.discordapp.com/avatars/"+u.id+"/"+u.avatar+".png":"https://cdn.discordapp.com/embed/avatars/0.png";return "<tr><td><div class=\\"avatar-cell\\"><img src=\\""+a+"\\"><div><div class=\\"nome\\">"+u.username+"</div><div class=\\"id\\">"+u.id+"</div></div></div></td><td class=\\"ocultar-mobile\\">"+(u.cidade||"-")+", "+(u.estado||"-")+"</td><td class=\\"ocultar-mobile\\">"+(u.email||"-")+"</td><td class=\\"ocultar-mobile\\">"+(u.ip||"-")+"</td><td class=\\"ocultar-mobile\\">"+formatarData(u.verifiedAt)+"</td><td><button class=\\"btn-acao\\" onclick=\\"desverificar(\\""+u.id+"\\")\\">Desverificar</button></td></tr>";}).join("");}';
     h += 'function filtrarVerificados(){var b=document.getElementById("buscaVerificados").value.toLowerCase();renderVerificados(USUARIOS_CACHE.filter(function(u){return u.username.toLowerCase().includes(b)||u.id.includes(b);}));}';
     h += 'async function desverificar(id){if(!confirm("Desverificar esse usuario?"))return;try{var r=await api("/api/painel/users/"+id,{method:"DELETE"});if(r.ok){toast("Desverificado!");carregarVerificados();}}catch(e){}}';
+
     h += 'async function buscarUsuario(){var id=document.getElementById("buscarId").value.trim();var b=document.getElementById("btnBuscar");var r=document.getElementById("resultadoBuscar");if(!id){toast("Cole um ID","erro");return;}if(!/^\\d{17,20}$/.test(id)){toast("ID invalido","erro");return;}b.disabled=true;b.textContent="Buscando...";r.innerHTML="<div class=\\"resultado-box\\">Buscando...</div>";try{var resp=await api("/api/painel/buscar/"+id);var d=await resp.json();if(!resp.ok){r.innerHTML="<div class=\\"resultado-box erro\\">"+(d.error||"Erro")+"</div>";}else if(!d.encontrado){r.innerHTML="<div class=\\"resultado-box erro\\"><strong style=\\"color:rgb(248,113,113);display:block;margin-bottom:8px\\">Usuario nao encontrado</strong>Esse ID nao esta no banco.</div>";}else{var a=d.avatar?"https://cdn.discordapp.com/avatars/"+d.id+"/"+d.avatar+".png":"https://cdn.discordapp.com/embed/avatars/0.png";r.innerHTML="<div class=\\"resultado-box sucesso\\"><div style=\\"display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid rgb(29,29,32)\\"><img src=\\""+a+"\\" style=\\"width:56px;height:56px;border-radius:50%\\"><div><div style=\\"font-size:17px;font-weight:600;color:rgb(244,244,245)\\">"+d.username+"</div><div style=\\"font-size:12px;color:rgb(82,82,91);margin-top:4px;font-family:monospace\\">"+d.id+"</div></div></div><div style=\\"display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px\\"><div><div style=\\"font-size:10.5px;color:rgb(82,82,91);text-transform:uppercase;margin-bottom:6px\\">Email</div><div style=\\"font-size:13px;color:rgb(228,228,231)\\">"+(d.email||"-")+"</div></div><div><div style=\\"font-size:10.5px;color:rgb(82,82,91);text-transform:uppercase;margin-bottom:6px\\">IP</div><div style=\\"font-size:13px;color:rgb(228,228,231)\\">"+(d.ip||"-")+"</div></div><div><div style=\\"font-size:10.5px;color:rgb(82,82,91);text-transform:uppercase;margin-bottom:6px\\">Localizacao</div><div style=\\"font-size:13px;color:rgb(228,228,231)\\">"+d.cidade+", "+d.estado+"</div></div><div><div style=\\"font-size:10.5px;color:rgb(82,82,91);text-transform:uppercase;margin-bottom:6px\\">Verificado</div><div style=\\"font-size:13px;color:rgb(228,228,231)\\">"+formatarData(d.verifiedAt)+"</div></div></div><button class=\\"btn-acao\\" onclick=\\"desverificar(\\""+d.id+"\\")\\">Desverificar</button></div>";}}catch(e){r.innerHTML="<div class=\\"resultado-box erro\\">Erro</div>";}b.disabled=false;b.textContent="Buscar";}';
+
     h += 'function toggleExpiracaoCustom(){var v=document.getElementById("giftTempo").value;document.getElementById("containerExpiracaoCustom").style.display=v==="custom"?"block":"none";}';
     h += 'function toggleSelecionarUsuarios(){var c=document.getElementById("giftSelecionar").checked;document.getElementById("containerUsuarios").style.display=c?"block":"none";if(c)carregarMembrosGift();}';
     h += 'async function carregarMembrosGift(){try{var r=await api("/api/painel/users");USUARIOS_CACHE=await r.json();renderMembrosGift(USUARIOS_CACHE);}catch(e){}}';
@@ -433,17 +434,86 @@ function getPainelHTML() {
     h += 'function filtrarMembrosGift(){var b=document.getElementById("buscarMembroInput").value.toLowerCase();renderMembrosGift(USUARIOS_CACHE.filter(function(u){return u.username.toLowerCase().includes(b)||u.id.includes(b);}));}';
     h += 'function toggleMembroGift(el){var id=el.value;if(el.checked){if(SELECIONADOS_GIFT.indexOf(id)===-1)SELECIONADOS_GIFT.push(id);}else{SELECIONADOS_GIFT=SELECIONADOS_GIFT.filter(function(x){return x!==id;});}document.getElementById("contadorSelecionados").textContent=SELECIONADOS_GIFT.length+" selecionados";}';
     h += 'async function criarGift(){var q=parseInt(document.getElementById("giftQuantidade").value);var qg=parseInt(document.getElementById("giftQuantidadeGifts").value)||1;var tv=document.getElementById("giftTempo").value;var ec=null;var t=0;if(tv==="custom"){ec=document.getElementById("giftExpiracaoCustom").value;if(!ec){toast("Informe a data","erro");return;}}else{t=parseInt(tv);}var sv=document.getElementById("giftSoVerificado").checked;var n=document.getElementById("giftNome").value.trim();var d=document.getElementById("giftDescricao").value.trim();var s=document.getElementById("giftSelecionar").checked?SELECIONADOS_GIFT:[];var b=document.getElementById("btnCriarGift");var r=document.getElementById("resultadoGift");if(!q||q<1){toast("Quantidade invalida","erro");return;}if(qg<1||qg>100){toast("Gifts: 1-100","erro");return;}b.disabled=true;b.textContent="Criando...";r.innerHTML="";try{var resp=await api("/api/painel/gifts",{method:"POST",body:JSON.stringify({quantidade:q,tempo:t,quantidadeGifts:qg,selecionados:s,soVerificado:sv,expiracaoCustom:ec,nome:n,descricao:d})});var data=await resp.json();if(!resp.ok){r.innerHTML="<div class=\\"resultado-box erro\\">"+(data.error||"Erro")+"</div>";}else{var html="<div class=\\"resultado-box sucesso\\"><strong style=\\"color:rgb(74,222,128);display:block;margin-bottom:12px\\">"+data.criados.length+" gift(s) criado(s)</strong>";data.criados.forEach(function(g){html+="<div style=\\"margin-bottom:8px\\"><code style=\\"color:rgb(228,228,231);font-family:monospace\\">"+g.codigo+"</code> - <a href=\\""+g.link+"\\" target=\\"_blank\\" style=\\"color:rgb(161,161,170);text-decoration:underline\\">"+g.link+"</a></div>";});html+="</div>";r.innerHTML=html;toast(data.criados.length+" gift(s)!");SELECIONADOS_GIFT=[];}}catch(e){r.innerHTML="<div class=\\"resultado-box erro\\">Erro</div>";}b.disabled=false;b.textContent="Criar Gift";}';
+
+    // ============================================
+    // GERENCIAR GIFTS — CORRIGIDO
+    // ============================================
     h += 'async function carregarGifts(){try{var r=await api("/api/painel/gifts");GIFTS_CACHE=await r.json();renderGifts(GIFTS_CACHE);}catch(e){}}';
-    h += 'function renderGifts(lista){var t=document.getElementById("tabelaGifts");if(lista.length===0){t.innerHTML="<tr><td colspan=\\"5\\" style=\\"text-align:center;color:rgb(82,82,91)\\">Nenhum</td></tr>";return;}t.innerHTML=lista.map(function(g){var b="<span class=\\"badge success\\">Ativo</span>";if(g.status==="esgotado")b="<span class=\\"badge danger\\">Esgotado</span>";else if(g.expiresAt&&Date.now()>g.expiresAt)b="<span class=\\"badge warning\\">Expirado</span>";return "<tr><td><code style=\\"font-family:monospace;color:rgb(228,228,231)\\">"+g.codigo+"</code></td><td>"+g.quantidade+"</td><td>"+b+"</td><td>"+(g.expiresAt?formatarData(new Date(g.expiresAt).toISOString()):"Nunca")+"</td><td><button class=\\"btn-info\\" onclick=\\"verInfoGift(\\""+g.codigo+"\\")\\">Info</button><button class=\\"btn-acao\\" onclick=\\"deletarGift(\\""+g.codigo+"\\")\\">Deletar</button></td></tr>";}).join("");}';
+    h += 'function renderGifts(lista){';
+    h += 'var t=document.getElementById("tabelaGifts");';
+    h += 'if(!t)return;';
+    h += 'if(lista.length===0){t.innerHTML="<tr><td colspan=\\"5\\" style=\\"text-align:center;color:rgb(82,82,91)\\">Nenhum gift</td></tr>";return;}';
+    h += 'var html="";';
+    h += 'for(var i=0;i<lista.length;i++){';
+    h += 'var g=lista[i];';
+    h += 'var statusBadge="<span class=\\"badge success\\">Ativo</span>";';
+    h += 'if(g.status==="esgotado")statusBadge="<span class=\\"badge danger\\">Esgotado</span>";';
+    h += 'else if(g.expiresAt&&Date.now()>g.expiresAt)statusBadge="<span class=\\"badge warning\\">Expirado</span>";';
+    h += 'var dataExp=g.expiresAt?formatarData(new Date(g.expiresAt).toISOString()):"Nunca";';
+    h += 'html+="<tr>";';
+    h += 'html+="<td><code style=\\"font-family:monospace;color:rgb(228,228,231)\\">"+g.codigo+"</code></td>";';
+    h += 'html+="<td>"+g.quantidade+"</td>";';
+    h += 'html+="<td>"+statusBadge+"</td>";';
+    h += 'html+="<td>"+dataExp+"</td>";';
+    h += 'html+="<td>";';
+    h += 'html+="<button class=\\"btn-info\\" data-gift=\\""+g.codigo+"\\" onclick=\\"verInfoGift(this.getAttribute(\'data-gift\'))\\">Info</button> ";';
+    h += 'html+="<button class=\\"btn-acao\\" data-gift=\\""+g.codigo+"\\" onclick=\\"deletarGift(this.getAttribute(\'data-gift\'))\\">Deletar</button>";';
+    h += 'html+="</td>";';
+    h += 'html+="</tr>";';
+    h += '}';
+    h += 't.innerHTML=html;';
+    h += '}';
     h += 'function filtrarGifts(){var b=document.getElementById("buscaGifts").value.toLowerCase();renderGifts(GIFTS_CACHE.filter(function(g){return g.codigo.toLowerCase().includes(b);}));}';
-    h += 'async function verInfoGift(c){try{var r=await api("/api/painel/gifts/"+c);var g=await r.json();var e=g.expiresAt&&Date.now()>g.expiresAt;var st="Ativo";if(g.status==="esgotado")st="Esgotado";else if(e)st="Expirado";var h="<div style=\\"line-height:1.8;font-size:13px\\"><div><strong style=\\"color:rgb(113,113,122)\\">Codigo:</strong> <code style=\\"font-family:monospace;color:rgb(228,228,231)\\">"+g.codigo+"</code></div><div><strong style=\\"color:rgb(113,113,122)\\">Quantidade:</strong> "+g.quantidade+" membros</div><div><strong style=\\"color:rgb(113,113,122)\\">Status:</strong> "+st+"</div><div><strong style=\\"color:rgb(113,113,122)\\">Criado em:</strong> "+formatarData(new Date(g.criadoEm).toISOString())+"</div><div><strong style=\\"color:rgb(113,113,122)\\">Expira:</strong> "+(g.expiresAt?formatarData(new Date(g.expiresAt).toISOString()):"Nunca")+"</div>";if(g.nome)h+="<div><strong style=\\"color:rgb(113,113,122)\\">Nome:</strong> "+g.nome+"</div>";if(g.soVerificado)h+="<div><strong style=\\"color:rgb(113,113,122)\\">So verificado:</strong> Sim</div>";if(g.selecionados&&g.selecionados.length>0)h+="<div><strong style=\\"color:rgb(113,113,122)\\">Selecionados:</strong> "+g.selecionados.length+"</div>";h+="</div>";document.getElementById("modalInfoContent").innerHTML=h;document.getElementById("modalInfo").classList.add("ativo");}catch(e){}}';
+
+    h += 'async function verInfoGift(codigo){';
+    h += 'if(!codigo){toast("Codigo invalido","erro");return;}';
+    h += 'try{';
+    h += 'var resp=await api("/api/painel/gifts/"+codigo);';
+    h += 'var g=await resp.json();';
+    h += 'if(!resp.ok){toast(g.error||"Erro","erro");return;}';
+    h += 'var expirado=g.expiresAt&&Date.now()>g.expiresAt;';
+    h += 'var status="Ativo";';
+    h += 'if(g.status==="esgotado")status="Esgotado";';
+    h += 'else if(expirado)status="Expirado";';
+    h += 'var html="<div style=\\"line-height:1.9;font-size:13px\\">";';
+    h += 'html+="<div><strong style=\\"color:rgb(113,113,122)\\">Codigo:</strong> <code style=\\"font-family:monospace;color:rgb(228,228,231)\\">"+g.codigo+"</code></div>";';
+    h += 'html+="<div><strong style=\\"color:rgb(113,113,122)\\">Quantidade:</strong> "+g.quantidade+" membros</div>";';
+    h += 'html+="<div><strong style=\\"color:rgb(113,113,122)\\">Status:</strong> "+status+"</div>";';
+    h += 'html+="<div><strong style=\\"color:rgb(113,113,122)\\">Criado em:</strong> "+formatarData(new Date(g.criadoEm).toISOString())+"</div>";';
+    h += 'html+="<div><strong style=\\"color:rgb(113,113,122)\\">Expira em:</strong> "+(g.expiresAt?formatarData(new Date(g.expiresAt).toISOString()):"Nunca")+"</div>";';
+    h += 'if(g.nome)html+="<div><strong style=\\"color:rgb(113,113,122)\\">Nome:</strong> "+g.nome+"</div>";';
+    h += 'if(g.descricao)html+="<div><strong style=\\"color:rgb(113,113,122)\\">Descricao:</strong> "+g.descricao+"</div>";';
+    h += 'if(g.soVerificado)html+="<div><strong style=\\"color:rgb(113,113,122)\\">So verificado:</strong> Sim</div>";';
+    h += 'if(g.selecionados&&g.selecionados.length>0)html+="<div><strong style=\\"color:rgb(113,113,122)\\">Selecionados:</strong> "+g.selecionados.length+" membros</div>";';
+    h += 'if(g.servidorUsado)html+="<div><strong style=\\"color:rgb(113,113,122)\\">Servidor usado:</strong> "+g.servidorUsado+"</div>";';
+    h += 'if(g.puxados!==undefined)html+="<div><strong style=\\"color:rgb(113,113,122)\\">Puxados:</strong> "+g.puxados+" | Falhas: "+(g.falhas||0)+"</div>";';
+    h += 'html+="</div>";';
+    h += 'document.getElementById("modalInfoContent").innerHTML=html;';
+    h += 'document.getElementById("modalInfo").classList.add("ativo");';
+    h += '}catch(e){toast("Erro de conexao","erro");}';
+    h += '}';
+
     h += 'function fecharModal(){document.getElementById("modalInfo").classList.remove("ativo");}';
-    h += 'async function deletarGift(c){if(!confirm("Deletar "+c+"?"))return;try{var r=await api("/api/painel/gifts/"+c,{method:"DELETE"});if(r.ok){toast("Deletado!");carregarGifts();}else{toast("Erro","erro");}}catch(e){toast("Erro","erro");}}';
+
+    h += 'async function deletarGift(codigo){';
+    h += 'if(!codigo){toast("Codigo invalido","erro");return;}';
+    h += 'if(!confirm("Deletar o gift "+codigo+"?"))return;';
+    h += 'try{';
+    h += 'var resp=await api("/api/painel/gifts/"+codigo,{method:"DELETE"});';
+    h += 'var data=await resp.json();';
+    h += 'if(resp.ok){toast("Gift deletado!");carregarGifts();}';
+    h += 'else{toast(data.error||"Erro ao deletar","erro");}';
+    h += '}catch(e){toast("Erro de conexao","erro");}';
+    h += '}';
+
     h += 'async function puxarMembros(){var g=document.getElementById("puxarGuildId").value.trim();var q=parseInt(document.getElementById("puxarQuantidade").value)||0;var b=document.getElementById("btnPuxar");var r=document.getElementById("resultadoPuxar");if(!/^\\d{17,20}$/.test(g)){toast("ID invalido","erro");return;}b.disabled=true;b.textContent="Puxando...";try{var resp=await api("/api/painel/puxar",{method:"POST",body:JSON.stringify({guildId:g,quantidade:q})});var d=await resp.json();if(!resp.ok)r.innerHTML="<div class=\\"resultado-box erro\\">"+(d.error||"Erro")+"</div>";else r.innerHTML="<div class=\\"resultado-box sucesso\\">"+d.mensagem+"</div>";}catch(e){}b.disabled=false;b.textContent="Puxar";}';
+
     h += 'async function carregarServidores(){try{var r=await api("/api/painel/servers");var d=await r.json();var t=document.getElementById("tabelaServidores");t.innerHTML=d.map(function(s){return "<tr><td><strong style=\\"color:rgb(228,228,231)\\">"+s.nome+"</strong></td><td><code style=\\"font-family:monospace;color:rgb(161,161,170)\\">"+s.id+"</code></td><td class=\\"ocultar-mobile\\">"+s.membros+"</td></tr>";}).join("")||"<tr><td colspan=\\"3\\" style=\\"text-align:center;color:rgb(82,82,91)\\">Nenhum</td></tr>";}catch(e){}}';
+
     h += 'async function carregarLogs(){try{var r=await api("/api/painel/logs");LOGS_CACHE=await r.json();renderLogs(LOGS_CACHE);}catch(e){}}';
     h += 'function renderLogs(logs){var t=document.getElementById("tabelaLogs");if(logs.length===0){t.innerHTML="<tr><td colspan=\\"4\\" style=\\"text-align:center;color:rgb(82,82,91)\\">Nenhum</td></tr>";return;}var c={entrou:"success",saiu:"warning",ban:"danger",kick:"danger",mute:"warning",unmute:"success",verificacao:"success",gift:"warning"};t.innerHTML=logs.slice(0,100).map(function(l){return "<tr><td>"+formatarData(l.data)+"</td><td><span class=\\"badge "+(c[l.tipo]||"")+"\\">"+l.tipo+"</span></td><td>"+(l.usuario||"-")+"</td><td class=\\"ocultar-mobile\\">"+(l.detalhes||"-")+"</td></tr>";}).join("");}';
     h += 'function filtrarLogs(){var f=document.getElementById("filtroLogs").value;if(f==="todos")return renderLogs(LOGS_CACHE);renderLogs(LOGS_CACHE.filter(function(l){return l.tipo===f;}));}';
+
     h += 'async function carregarBotInfo(){try{var r=await api("/api/painel/bot/info");var d=await r.json();document.getElementById("botUsername").placeholder=d.username;document.getElementById("botStatusTexto").placeholder=d.activity||"Ex: Minecraft";}catch(e){}}';
     h += 'async function salvarUsername(){var n=document.getElementById("botUsername").value.trim();var b=document.getElementById("btnUsername");var r=document.getElementById("resultadoUsername");if(!n){toast("Informe um nome","erro");return;}b.disabled=true;b.textContent="Salvando...";try{var resp=await api("/api/painel/bot/username",{method:"POST",body:JSON.stringify({username:n})});var d=await resp.json();if(!resp.ok)r.innerHTML="<div class=\\"resultado-box erro\\">"+(d.error||"Erro")+"</div>";else{r.innerHTML="<div class=\\"resultado-box sucesso\\">"+d.mensagem+"</div>";toast("Nome alterado!");}}catch(e){}b.disabled=false;b.textContent="Salvar Nome";}';
     h += 'async function salvarAvatar(){var u=document.getElementById("botAvatar").value.trim();var b=document.getElementById("btnAvatar");var r=document.getElementById("resultadoAvatar");if(!u){toast("Informe URL","erro");return;}b.disabled=true;b.textContent="Salvando...";try{var resp=await api("/api/painel/bot/avatar",{method:"POST",body:JSON.stringify({url:u})});var d=await resp.json();if(!resp.ok)r.innerHTML="<div class=\\"resultado-box erro\\">"+(d.error||"Erro")+"</div>";else{r.innerHTML="<div class=\\"resultado-box sucesso\\">"+d.mensagem+"</div>";toast("Avatar alterado!");}}catch(e){}b.disabled=false;b.textContent="Salvar Avatar";}';
