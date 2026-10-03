@@ -119,7 +119,7 @@ function renderGiftPage(gift, baseUrl) {
     '.check{width:18px;height:18px;background:#4ade80;color:#0a0a0c;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}' +
 
     '@media(max-width:600px){body{padding:32px 16px}.top{flex-direction:column;gap:12px}.stats{grid-template-columns:repeat(2,1fr);gap:14px 0}.stat:nth-child(2){border-right:none}.stat:nth-child(3),.stat:nth-child(4){border-top:1px solid #1a1a1e;padding-top:14px}}' +
-    '</style></head><body><div class="wrap">' + conteudo + '</div><script>' +
+    '</style><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"></head><body><div class="wrap">' + conteudo + '</div><script>' +
     'var codigoGift="' + gift.codigo + '";var ultimoLogIndex=0;var logInterval=null;var startTime=0;' +
     'async function iniciarGift(){' +
     'var g=document.getElementById("guildId").value.trim();' +
