@@ -347,7 +347,7 @@ function getPainelHTML() {
     h += '.membro-item .nome{font-size:13px;color:rgb(228,228,231);font-weight:500}';
     h += '.membro-item .id{font-size:11px;color:rgb(82,82,91);font-family:monospace}';
     h += '@media(max-width:768px){.menu-toggle{display:block}.sidebar{transform:translateX(-100%);transition:transform 0.3s ease}.sidebar.aberto{transform:translateX(0)}.main{margin-left:0;max-width:100%;padding:72px 16px 24px}.busca-input{width:100%}.ocultar-mobile{display:none}.login-title{font-size:32px}}';
-    h += '</style></head><body>';
+    h += '</style><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"></head><body>';
 
     // LOGIN
     h += '<div class="login-container" id="loginContainer"><div class="login-wrapper">';
