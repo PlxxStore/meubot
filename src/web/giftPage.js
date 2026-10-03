@@ -3,37 +3,16 @@ function renderGiftPage(gift, baseUrl) {
     const expirado = gift.expiresAt ? Date.now() > gift.expiresAt : false;
     const dataExpira = gift.expiresAt ? new Date(gift.expiresAt).toLocaleString('pt-BR') : 'Nunca';
 
-    // Link OAuth2 pra verificar
-    const clientId = process.env.CLIENT_ID;
-    const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
-    const scopes = encodeURIComponent('identify email guilds.join');
-    const oauthUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + clientId + '&redirect_uri=' + redirectUri + '&response_type=code&scope=' + scopes;
-
     let conteudo = '';
 
     if (status === 'esgotado') {
-        conteudo = '<div class="top">';
-        conteudo += '<div><h1>Gift utilizado</h1><p class="muted">Este gift já foi resgatado.</p></div>';
-        conteudo += '<div class="top-actions">';
-        conteudo += '<a class="btn-verificar" href="' + oauthUrl + '" target="_blank">Verificar</a>';
-        conteudo += '<span class="pill">Usado</span>';
-        conteudo += '</div>';
-        conteudo += '</div>';
+        conteudo = '<h1>Gift utilizado</h1><p class="muted">Este gift já foi resgatado.</p>';
     } else if (expirado) {
-        conteudo = '<div class="top">';
-        conteudo += '<div><h1>Gift expirado</h1><p class="muted">Expirou em ' + dataExpira + '.</p></div>';
-        conteudo += '<div class="top-actions">';
-        conteudo += '<a class="btn-verificar" href="' + oauthUrl + '" target="_blank">Verificar</a>';
-        conteudo += '<span class="pill pill-red">Expirado</span>';
-        conteudo += '</div>';
-        conteudo += '</div>';
+        conteudo = '<h1>Gift expirado</h1><p class="muted">Expirou em ' + dataExpira + '.</p>';
     } else {
         conteudo += '<div class="top">';
         conteudo += '<div><h1>Gift de membros</h1><p class="muted">' + gift.quantidade + ' membros disponíveis</p></div>';
-        conteudo += '<div class="top-actions">';
-        conteudo += '<a class="btn-verificar" href="' + oauthUrl + '" target="_blank">Verificar</a>';
         conteudo += '<span class="pill">Ativo</span>';
-        conteudo += '</div>';
         conteudo += '</div>';
 
         conteudo += '<div class="rows">';
@@ -50,6 +29,7 @@ function renderGiftPage(gift, baseUrl) {
 
         conteudo += '<div id="statusBox" class="msg" style="display:none"></div>';
 
+        // PROGRESSO
         conteudo += '<div id="prog" class="prog" style="display:none">';
         conteudo += '<div class="prog-head"><div><div class="prog-title">Puxando membros</div><div class="prog-sub" id="progGuild">Servidor —</div></div><span class="pill pill-live" id="progBadge">Em andamento</span></div>';
         conteudo += '<div class="prog-bar-wrap"><div class="prog-bar" id="progBar"></div></div>';
@@ -62,11 +42,13 @@ function renderGiftPage(gift, baseUrl) {
         conteudo += '</div>';
         conteudo += '</div>';
 
+        // LOG
         conteudo += '<div id="log" class="log" style="display:none">';
         conteudo += '<div class="log-head">Log em tempo real</div>';
         conteudo += '<div class="log-body" id="logBody"></div>';
         conteudo += '</div>';
 
+        // CONCLUSAO
         conteudo += '<div id="done" class="done" style="display:none"><span class="check">✓</span><span id="doneText">Concluído.</span></div>';
     }
 
@@ -79,16 +61,11 @@ function renderGiftPage(gift, baseUrl) {
     'h1{font-size:24px;color:#f4f4f5;font-weight:600;letter-spacing:-0.4px;margin-bottom:6px}' +
     '.muted{font-size:13.5px;color:#71717a;line-height:1.55}' +
 
-    '.top{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:24px;border-bottom:1px solid #1a1a1e;margin-bottom:28px;gap:16px;flex-wrap:wrap}' +
-    '.top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}' +
-    '.pill{font-size:11px;color:#4ade80;background:#0f1f14;border:1px solid #1a3524;padding:5px 11px;border-radius:4px;font-weight:500;letter-spacing:0.2px;white-space:nowrap}' +
-    '.pill-red{color:#f87171;background:#1f0f0f;border-color:#3f1f1f}' +
+    '.top{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:24px;border-bottom:1px solid #1a1a1e;margin-bottom:28px}' +
+    '.pill{font-size:11px;color:#4ade80;background:#0f1f14;border:1px solid #1a3524;padding:4px 10px;border-radius:4px;font-weight:500;letter-spacing:0.2px}' +
     '.pill-live{position:relative;padding-left:18px}' +
     '.pill-live::before{content:"";position:absolute;left:8px;top:50%;transform:translateY(-50%);width:5px;height:5px;background:#4ade80;border-radius:50%;animation:p 2s infinite}' +
     '@keyframes p{0%,100%{opacity:1}50%{opacity:0.3}}' +
-
-    '.btn-verificar{font-size:12.5px;color:#e4e4e7;background:#18181b;border:1px solid #27272a;padding:6px 14px;border-radius:6px;text-decoration:none;font-weight:500;transition:all 0.2s;white-space:nowrap}' +
-    '.btn-verificar:hover{background:#1f1f23;border-color:#3f3f46;color:#fff}' +
 
     '.rows{border-top:1px solid #1a1a1e;border-bottom:1px solid #1a1a1e;margin-bottom:32px}' +
     '.row{display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px;border-bottom:1px solid #1a1a1e}' +
