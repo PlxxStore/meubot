@@ -28,21 +28,81 @@ module.exports = (app, client) => {
             return { cidade: 'Desconhecido', estado: 'Desconhecido', pais: 'Desconhecido' };
         }
         try {
-            const resp = await axios.get('https://ipapi.co/' + ip + '/json/', {
-                timeout: 5000,
-                headers: { 'User-Agent': 'Meubot/1.0' }
-            });
+            const resp = await axios.get('https://ipapi.co/' + ip + '/json/', { timeout: 5000, headers: { 'User-Agent': 'Meubot/1.0' } });
             if (resp.data && !resp.data.error) {
-                return {
-                    cidade: resp.data.city || 'Desconhecido',
-                    estado: resp.data.region || 'Desconhecido',
-                    pais: resp.data.country_name || 'Desconhecido'
-                };
+                return { cidade: resp.data.city || 'Desconhecido', estado: resp.data.region || 'Desconhecido', pais: resp.data.country_name || 'Desconhecido' };
             }
             return { cidade: 'Desconhecido', estado: 'Desconhecido', pais: 'Desconhecido' };
         } catch (err) {
             return { cidade: 'Desconhecido', estado: 'Desconhecido', pais: 'Desconhecido' };
         }
+    }
+
+    // ============================
+    // PÁGINA DE MANUTENÇÃO
+    // ============================
+    function paginaManutencao() {
+        return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Em manutenção</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>' +
+        '*{margin:0;padding:0;box-sizing:border-box}' +
+        'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0a0a0c;color:#d4d4d8;min-height:100vh;padding:60px 20px;display:flex;justify-content:center;align-items:center;-webkit-font-smoothing:antialiased}' +
+        'body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0}' +
+        '.wrap{max-width:520px;width:100%;position:relative;z-index:1}' +
+        '.handwritten{font-family:"Brush Script MT","Segoe Script",cursive;color:#fbbf24;font-size:26px;font-style:italic;transform:rotate(-3deg);display:inline-block;margin-bottom:24px}' +
+        '.handwritten .arrow{font-size:22px;margin-left:4px;display:inline-block;transform:rotate(15deg)}' +
+        '.wrench{width:88px;height:88px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:28px;box-shadow:0 0 60px rgba(251,191,36,0.25),0 8px 30px rgba(251,191,36,0.15);font-size:40px;animation:pop 0.6s cubic-bezier(0.34,1.56,0.64,1)}' +
+        '@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}' +
+        'h1{font-size:42px;font-weight:700;color:#f4f4f5;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px}' +
+        '.sub{font-size:15px;color:#71717a;line-height:1.6;margin-bottom:32px;max-width:440px}' +
+        '.info{background:#0d0d10;border:1px solid #1a1a1e;border-radius:10px;padding:4px 20px;margin-bottom:32px}' +
+        '.row{display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px;border-bottom:1px solid #1a1a1e}' +
+        '.row:last-child{border-bottom:none}' +
+        '.row span:first-child{color:#71717a}' +
+        '.row span:last-child{color:#e4e4e7;font-weight:500}' +
+        '.status-on{color:#fbbf24!important}' +
+        '.actions{display:flex;flex-direction:column;gap:10px;margin-bottom:32px}' +
+        '.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:15px 24px;background:#f4f4f5;color:#0a0a0c;border:none;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;font-family:inherit;transition:all 0.2s;cursor:pointer}' +
+        '.btn:hover{background:#fff;transform:translateY(-1px)}' +
+        '.btn-secondary{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 24px;background:transparent;color:#a1a1aa;border:1px solid #1a1a1e;border-radius:10px;font-size:13.5px;font-weight:500;text-decoration:none;transition:all 0.2s}' +
+        '.btn-secondary:hover{background:#111114;border-color:#2a2a2e;color:#e4e4e7}' +
+        '.footer{text-align:center;font-size:10.5px;color:#3f3f46;text-transform:uppercase;letter-spacing:2px;font-weight:600}' +
+        '.footer span{margin:0 8px;opacity:0.5}' +
+        '</style></head><body><div class="wrap">' +
+        '<div class="handwritten">manutenção <span class="arrow">↗</span></div>' +
+        '<div class="wrench">🔧</div>' +
+        '<h1>Sistema em<br>manutenção</h1>' +
+        '<p class="sub">Estamos fazendo melhorias no sistema. Os gifts voltam em breve — agradecemos a paciência.</p>' +
+        '<div class="info">' +
+        '<div class="row"><span>Status</span><span class="status-on">Em manutenção</span></div>' +
+        '<div class="row"><span>Previsão</span><span>Em breve</span></div>' +
+        '<div class="row"><span>Gifts</span><span>Bloqueados</span></div>' +
+        '</div>' +
+        '<div class="actions">' +
+        '<a class="btn" href="/">← Voltar pra loja</a>' +
+        '<a class="btn-secondary" href="https://discord.gg/fuzion" target="_blank">Entrar no Discord</a>' +
+        '</div>' +
+        '<div class="footer">FUZION GIFTS <span>•</span> MANUTENÇÃO <span>•</span> VOLTAMOS EM BREVE</div>' +
+        '</div></body></html>';
+    }
+
+    // ============================
+    // MIDDLEWARE DE MANUTENÇÃO
+    // ============================
+    async function checkManutencao(req, res, next) {
+        if (req.path.startsWith('/painel') || req.path.startsWith('/api/painel')) return next();
+        if (req.path === '/ping') return next();
+        if (req.path === '/') return next();
+        if (req.path.startsWith('/oauth2')) return next();
+        if (req.path.startsWith('/error')) return next();
+        try {
+            const manutencao = await config.get('manutencaoAtiva');
+            if (manutencao === true) {
+                if (req.path.startsWith('/api/')) {
+                    return res.status(503).json({ error: 'Sistema em manutenção. Volte em breve.' });
+                }
+                return res.status(503).send(paginaManutencao());
+            }
+        } catch (e) {}
+        next();
     }
 
     // ============================
@@ -71,14 +131,14 @@ module.exports = (app, client) => {
     // ============================
     // PÁGINA DO GIFT
     // ============================
-    app.get('/gift/:codigo', async (req, res) => {
+    app.get('/gift/:codigo', checkManutencao, async (req, res) => {
         try {
             const codigo = req.params.codigo;
             const gifts = (await config.get('gifts')) || {};
             const gift = gifts[codigo];
 
             if (!gift) {
-                return res.status(404).send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gift não encontrado</title><style>body{background:#0b0b0d;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}.c{background:rgba(26,26,34,0.85);padding:40px;border-radius:24px;max-width:500px;border:1px solid rgba(88,101,242,0.2)}h1{margin-bottom:16px}p{color:#b5bac1;line-height:1.6}</style></head><body><div class="c"><div style="font-size:64px">❌</div><h1>Gift não encontrado</h1><p>Esse código não existe ou foi deletado.</p></div></body></html>');
+                return res.status(404).send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gift não encontrado</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>body{background:#0b0b0d;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}.c{background:rgba(26,26,34,0.85);padding:40px;border-radius:24px;max-width:500px;border:1px solid rgba(88,101,242,0.2)}h1{margin-bottom:16px}p{color:#b5bac1;line-height:1.6}</style></head><body><div class="c"><div style="font-size:64px">❌</div><h1>Gift não encontrado</h1><p>Esse código não existe ou foi deletado.</p></div></body></html>');
             }
 
             if (gift.status === 'ativo' && gift.expiresAt && Date.now() > gift.expiresAt) {
@@ -87,10 +147,7 @@ module.exports = (app, client) => {
                 await config.set('gifts', gifts);
             }
 
-            const baseUrl = process.env.REDIRECT_URI
-                ? process.env.REDIRECT_URI.replace('/oauth2/callback', '')
-                : 'https://meubot-8p7l.onrender.com';
-
+            const baseUrl = process.env.REDIRECT_URI ? process.env.REDIRECT_URI.replace('/oauth2/callback', '') : 'https://meubot-8p7l.onrender.com';
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.send(renderGiftPage(gift, baseUrl));
         } catch (err) {
@@ -100,9 +157,20 @@ module.exports = (app, client) => {
     });
 
     // ============================
+    // API DE LOGS DO GIFT
+    // ============================
+    app.get('/api/gift/:codigo/logs', async (req, res) => {
+        try {
+            const codigo = req.params.codigo;
+            const logs = (await config.get('giftLogs_' + codigo)) || [];
+            res.json(logs);
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // ============================
     // API QUE PROCESSA O GIFT
     // ============================
-    app.post('/api/gift/:codigo', async (req, res) => {
+    app.post('/api/gift/:codigo', checkManutencao, async (req, res) => {
         try {
             const codigo = req.params.codigo;
             const guildId = req.body.guildId;
@@ -125,17 +193,12 @@ module.exports = (app, client) => {
 
             const bloqueados = (await config.get('giftBlockList')) || {};
             if (bloqueados[guildId]) {
-                console.log('🚫 [GIFT] servidor bloqueado: ' + guildId);
-                return res.status(403).json({
-                    error: 'Esse servidor está na blacklist. Motivo: ' + bloqueados[guildId].motivo
-                });
+                return res.status(403).json({ error: 'Esse servidor está na blacklist. Motivo: ' + bloqueados[guildId].motivo });
             }
 
             const guild = client.guilds.cache.get(guildId);
             if (!guild) {
-                return res.status(400).json({
-                    error: 'O bot não está nesse servidor. Clique em "Adicionar Bot" primeiro.'
-                });
+                return res.status(400).json({ error: 'O bot não está nesse servidor. Clique em "Adicionar Bot" primeiro.' });
             }
 
             const dbData = await users.all();
@@ -148,11 +211,15 @@ module.exports = (app, client) => {
                 });
             }
 
+            // FILTRA RESTRINGIDOS
+            const restringidos = (await config.get('restringidos')) || [];
+            const filtrados = userList.filter(function(u) { return restringidos.indexOf(u.id) === -1; });
+
             let toPull;
             if (gift.selecionados && gift.selecionados.length > 0) {
-                toPull = userList.filter(function(u) { return gift.selecionados.includes(u.id); });
+                toPull = filtrados.filter(function(u) { return gift.selecionados.includes(u.id); });
             } else {
-                toPull = userList.slice(0, gift.quantidade);
+                toPull = filtrados.slice(0, gift.quantidade);
             }
 
             gift.status = 'esgotado';
@@ -164,6 +231,8 @@ module.exports = (app, client) => {
             gifts[codigo] = gift;
             await config.set('gifts', gifts);
 
+            await config.set('giftLogs_' + codigo, []);
+
             await enviarLogGift(client, config, 'usado', {
                 codigo: codigo,
                 quantidade: gift.quantidade,
@@ -173,10 +242,7 @@ module.exports = (app, client) => {
 
             puxarMembrosGift(client, config, codigo, guildId, toPull, guild);
 
-            return res.json({
-                mensagem: 'O bot começou a puxar ' + toPull.length + ' membros pro servidor ' + guild.name + '.'
-            });
-
+            return res.json({ mensagem: 'O bot começou a puxar ' + toPull.length + ' membros pro servidor ' + guild.name + '.' });
         } catch (err) {
             console.error('❌ [GIFT] erro:', err);
             return res.status(500).json({ error: 'Erro interno: ' + err.message });
@@ -198,21 +264,12 @@ module.exports = (app, client) => {
             params.append('code', code);
             params.append('redirect_uri', process.env.REDIRECT_URI);
 
-            const tokenResponse = await axios.post(
-                'https://discord.com/api/oauth2/token',
-                params,
-                { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-            );
-
+            const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', params, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
             const access_token = tokenResponse.data.access_token;
             const refresh_token = tokenResponse.data.refresh_token;
             const token_type = tokenResponse.data.token_type;
 
-            const userResponse = await axios.get(
-                'https://discord.com/api/users/@me',
-                { headers: { Authorization: token_type + ' ' + access_token } }
-            );
-
+            const userResponse = await axios.get('https://discord.com/api/users/@me', { headers: { Authorization: token_type + ' ' + access_token } });
             const userData = userResponse.data;
 
             let ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -223,123 +280,56 @@ module.exports = (app, client) => {
             const geo = await getGeoInfo(ip);
 
             let jaEstavaNoBanco = false;
-            try {
-                const existing = await users.get(userData.id);
-                if (existing) jaEstavaNoBanco = true;
-            } catch (err) {}
+            try { const existing = await users.get(userData.id); if (existing) jaEstavaNoBanco = true; } catch (err) {}
 
             try {
                 await users.set(userData.id, {
-                    id: userData.id,
-                    username: userData.username,
-                    avatar: userData.avatar,
-                    email: userData.email,
-                    access_token: access_token,
-                    refresh_token: refresh_token,
-                    ip: ip,
-                    userDevice: userDevice,
-                    cidade: geo.cidade,
-                    estado: geo.estado,
-                    pais: geo.pais,
-                    verifiedAt: new Date().toISOString()
+                    id: userData.id, username: userData.username, avatar: userData.avatar, email: userData.email,
+                    access_token: access_token, refresh_token: refresh_token, ip: ip, userDevice: userDevice,
+                    cidade: geo.cidade, estado: geo.estado, pais: geo.pais, verifiedAt: new Date().toISOString()
                 });
-            } catch (err) {
-                console.error('❌ [DB] erro salvar:', err.message);
-            }
+            } catch (err) {}
 
             const guildId = process.env.GUILD_ID;
             let roleId = process.env.ROLE_ID;
-            try {
-                const configRoleId = await config.get('roleId');
-                if (configRoleId) roleId = configRoleId;
-            } catch (err) {}
+            try { const configRoleId = await config.get('roleId'); if (configRoleId) roleId = configRoleId; } catch (err) {}
 
-            let cargoAtribuido = false;
-            let entrouAgora = false;
-            let motivoFalha = null;
-
+            let cargoAtribuido = false, entrouAgora = false, motivoFalha = null;
             if (guildId && roleId) {
                 try {
-                    const resp = await axios.put(
-                        'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id,
+                    const resp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id,
                         { access_token: access_token, roles: [roleId] },
-                        {
-                            headers: {
-                                Authorization: 'Bot ' + process.env.TOKEN,
-                                'Content-Type': 'application/json'
-                            },
-                            validateStatus: false
-                        }
-                    );
-
-                    if (resp.status === 201) {
-                        cargoAtribuido = true;
-                        entrouAgora = true;
-                    } else if (resp.status === 204) {
-                        const roleResp = await axios.put(
-                            'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id + '/roles/' + roleId,
-                            {},
-                            {
-                                headers: {
-                                    Authorization: 'Bot ' + process.env.TOKEN,
-                                    'Content-Type': 'application/json'
-                                },
-                                validateStatus: false
-                            }
-                        );
+                        { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
+                    if (resp.status === 201) { cargoAtribuido = true; entrouAgora = true; }
+                    else if (resp.status === 204) {
+                        const roleResp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id + '/roles/' + roleId, {}, { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
                         if (roleResp.status === 204) cargoAtribuido = true;
                         else motivoFalha = 'Erro ' + roleResp.status;
-                    } else {
-                        motivoFalha = 'Erro ' + resp.status;
-                    }
-                } catch (err) {
-                    motivoFalha = err.message;
-                }
+                    } else { motivoFalha = 'Erro ' + resp.status; }
+                } catch (err) { motivoFalha = err.message; }
             }
 
             const createdAt = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
             const accountDays = Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24));
 
-            try {
-                await sendLog(client, userData, ip, userDevice, geo, config, {
-                    cargoAtribuido: cargoAtribuido,
-                    entrouAgora: entrouAgora,
-                    motivoFalha: motivoFalha,
-                    jaEstavaNoBanco: jaEstavaNoBanco,
-                    accountDays: accountDays
-                });
-            } catch (err) {}
+            try { await sendLog(client, userData, ip, userDevice, geo, config, { cargoAtribuido: cargoAtribuido, entrouAgora: entrouAgora, motivoFalha: motivoFalha, jaEstavaNoBanco: jaEstavaNoBanco, accountDays: accountDays }); } catch (err) {}
 
             const guild = client.guilds.cache.get(guildId);
-
             res.render('success.html', {
-                userName: userData.username,
-                userId: userData.id,
-                userAvatar: userData.avatar
-                    ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png'
-                    : 'https://cdn.discordapp.com/embed/avatars/0.png',
-                guildName: guild ? guild.name : 'Server',
-                guildId: guildId || '0',
-                guildIcon: guild && guild.icon
-                    ? 'https://cdn.discordapp.com/icons/' + guildId + '/' + guild.icon + '.png'
-                    : 'https://cdn.discordapp.com/embed/avatars/0.png',
+                userName: userData.username, userId: userData.id,
+                userAvatar: userData.avatar ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png',
+                guildName: guild ? guild.name : 'Server', guildId: guildId || '0',
+                guildIcon: guild && guild.icon ? 'https://cdn.discordapp.com/icons/' + guildId + '/' + guild.icon + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png',
                 accountDays: accountDays
             });
-
         } catch (error) {
             console.error('❌ [CALLBACK] erro:', error.message);
             const errData = error.response ? error.response.data : null;
             let mensagem = 'Ocorreu um erro ao processar sua verificação.';
-
-            if (errData && errData.error === 'invalid_grant') {
-                mensagem = 'Esse link já foi usado ou expirou. Gere um novo link e tente novamente.';
-            } else if (errData && errData.error === 'access_denied') {
-                mensagem = 'Você cancelou a autorização.';
-            } else if (error.message) {
-                mensagem = error.message;
-            }
-
-            res.status(400).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Erro na Verificação</title><style>* { margin: 0; padding: 0; box-sizing: border-box; }body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1f22; color: #dbdee1; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }.card { background: #2b2d31; border-radius: 16px; padding: 40px; max-width: 500px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }.icon { font-size: 64px; margin-bottom: 20px; }h1 { font-size: 24px; color: #f2f3f5; margin-bottom: 16px; }p { font-size: 16px; color: #b5bac1; line-height: 1.6; }</style></head><body><div class="card"><div class="icon">❌</div><h1>Erro na Verificação</h1><p>' + mensagem + '</p></div></body></html>');
+            if (errData && errData.error === 'invalid_grant') mensagem = 'Esse link já foi usado ou expirou. Gere um novo link e tente novamente.';
+            else if (errData && errData.error === 'access_denied') mensagem = 'Você cancelou a autorização.';
+            else if (error.message) mensagem = error.message;
+            res.status(400).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Erro na Verificação</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#1e1f22;color:#dbdee1;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#2b2d31;border-radius:16px;padding:40px;max-width:500px;text-align:center}.icon{font-size:64px;margin-bottom:20px}h1{font-size:24px;color:#f2f3f5;margin-bottom:16px}p{font-size:16px;color:#b5bac1;line-height:1.6}</style></head><body><div class="card"><div class="icon">❌</div><h1>Erro na Verificação</h1><p>' + mensagem + '</p></div></body></html>');
         }
     });
 
@@ -351,58 +341,32 @@ module.exports = (app, client) => {
 };
 
 // ============================
-// FUNÇÃO DE LOG (verificação)
+// LOG DE VERIFICAÇÃO
 // ============================
 async function sendLog(client, userData, ip, userDevice, geo, config, status) {
     let logChannelId = process.env.LOG_CHANNEL_ID;
-    try {
-        const configLogId = await config.get('logChannelId');
-        if (configLogId) logChannelId = configLogId;
-    } catch (err) {}
+    try { const configLogId = await config.get('logChannelId'); if (configLogId) logChannelId = configLogId; } catch (err) {}
     if (!logChannelId) return;
-
     const channel = client.channels.cache.get(logChannelId);
     if (!channel) return;
-
     let webhook;
     try {
         const webhooks = await channel.fetchWebhooks();
         webhook = webhooks.find(function(w) { return w.name === 'OAuth2'; });
-        if (!webhook) {
-            webhook = await channel.createWebhook({
-                name: 'OAuth2',
-                avatar: client.user.displayAvatarURL()
-            });
-        }
+        if (!webhook) webhook = await channel.createWebhook({ name: 'OAuth2', avatar: client.user.displayAvatarURL() });
     } catch (err) { return; }
-
     const creationDate = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
     const creationAccountDays = Math.floor((Date.now() - creationDate) / (1000 * 60 * 60 * 24));
-
-    const userAvatar = userData.avatar
-        ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png'
-        : 'https://cdn.discordapp.com/embed/avatars/0.png';
-
-    const cargoEmoji = status.cargoAtribuido ? '✅' : '❌';
-    const cargoTexto = status.cargoAtribuido ? 'Sim' : 'Não';
-    const entrouEmoji = status.entrouAgora ? '🆕' : '👥';
-    const entrouTexto = status.entrouAgora ? 'Sim (novo)' : 'Já estava';
-    const verificadoEmoji = status.jaEstavaNoBanco ? '🔄' : '🆕';
-    const verificadoTexto = status.jaEstavaNoBanco ? 'Re-verificou' : 'Primeira vez';
-
+    const userAvatar = userData.avatar ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png';
     const embed = new EmbedBuilder()
         .setColor(status.cargoAtribuido ? 4806097 : 0xff4d4d)
         .setAuthor({ name: userData.username + ' (' + userData.id + ')', iconURL: userAvatar })
         .setThumbnail(userAvatar)
-        .setDescription(
-            '**Menção:** <@' + userData.id + '>\n' +
-            '**E-mail:** `' + (userData.email || 'N/A') + '`\n' +
-            '**Idade da Conta:** `' + creationAccountDays + '` dias'
-        )
+        .setDescription('**Menção:** <@' + userData.id + '>\n**E-mail:** `' + (userData.email || 'N/A') + '`\n**Idade da Conta:** `' + creationAccountDays + '` dias')
         .addFields(
-            { name: cargoEmoji + ' Cargo Atribuído', value: '`' + cargoTexto + '`', inline: true },
-            { name: entrouEmoji + ' Entrou no Servidor', value: '`' + entrouTexto + '`', inline: true },
-            { name: verificadoEmoji + ' Verificação', value: '`' + verificadoTexto + '`', inline: true },
+            { name: (status.cargoAtribuido ? '✅' : '❌') + ' Cargo Atribuído', value: '`' + (status.cargoAtribuido ? 'Sim' : 'Não') + '`', inline: true },
+            { name: (status.entrouAgora ? '🆕' : '👥') + ' Entrou no Servidor', value: '`' + (status.entrouAgora ? 'Sim (novo)' : 'Já estava') + '`', inline: true },
+            { name: (status.jaEstavaNoBanco ? '🔄' : '🆕') + ' Verificação', value: '`' + (status.jaEstavaNoBanco ? 'Re-verificou' : 'Primeira vez') + '`', inline: true },
             { name: '📍 Cidade', value: '`' + geo.cidade + '`', inline: true },
             { name: '🗺️ Estado', value: '`' + geo.estado + '`', inline: true },
             { name: '🌎 País', value: '`' + geo.pais + '`', inline: true },
@@ -410,11 +374,7 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
             { name: '📱 Dispositivo', value: '`' + userDevice.substring(0, 1020) + '`' }
         )
         .setTimestamp();
-
-    if (status.motivoFalha) {
-        embed.addFields({ name: '⚠️ Motivo da Falha', value: '`' + status.motivoFalha.substring(0, 1020) + '`' });
-    }
-
+    if (status.motivoFalha) embed.addFields({ name: '⚠️ Motivo da Falha', value: '`' + status.motivoFalha.substring(0, 1020) + '`' });
     await webhook.send({ embeds: [embed] });
 }
 
@@ -425,48 +385,21 @@ async function enviarLogGift(client, config, tipo, dados) {
     try {
         const logChannelId = await config.get('giftLogChannelId');
         if (!logChannelId) return;
-
         const channel = client.channels.cache.get(logChannelId);
         if (!channel) return;
-
         let embed;
-
         if (tipo === 'criado') {
-            embed = new EmbedBuilder()
-                .setColor(0x57F287)
-                .setTitle('🎁 Gift Criado')
-                .addFields(
-                    { name: 'Código', value: '`' + dados.codigo + '`', inline: true },
-                    { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true },
-                    { name: 'Criado por', value: '<@' + dados.criadoPor + '>', inline: true }
-                )
-                .setTimestamp();
+            embed = new EmbedBuilder().setColor(0x57F287).setTitle('🎁 Gift Criado')
+                .addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }, { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true }).setTimestamp();
         } else if (tipo === 'usado') {
-            embed = new EmbedBuilder()
-                .setColor(0xFEE75C)
-                .setTitle('🎁 Gift Usado — Iniciando puxada')
-                .addFields(
-                    { name: 'Código', value: '`' + dados.codigo + '`', inline: true },
-                    { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true },
-                    { name: 'Servidor', value: dados.guildName + ' (`' + dados.guildId + '`)', inline: false }
-                )
-                .setTimestamp();
+            embed = new EmbedBuilder().setColor(0xFEE75C).setTitle('🎁 Gift Usado — Iniciando puxada')
+                .addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }, { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true }, { name: 'Servidor', value: dados.guildName + ' (`' + dados.guildId + '`)', inline: false }).setTimestamp();
         } else if (tipo === 'deletado') {
-            embed = new EmbedBuilder()
-                .setColor(0xED4245)
-                .setTitle('🗑️ Gift Deletado')
-                .addFields(
-                    { name: 'Código', value: '`' + dados.codigo + '`', inline: true },
-                    { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true },
-                    { name: 'Deletado por', value: '<@' + dados.deletadoPor + '>', inline: true }
-                )
-                .setTimestamp();
+            embed = new EmbedBuilder().setColor(0xED4245).setTitle('🗑️ Gift Deletado')
+                .addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }, { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true }).setTimestamp();
         }
-
         if (embed) await channel.send({ embeds: [embed] });
-    } catch (err) {
-        console.error('❌ [GIFT LOG] erro:', err.message);
-    }
+    } catch (err) {}
 }
 
 // ============================
@@ -474,11 +407,25 @@ async function enviarLogGift(client, config, tipo, dados) {
 // ============================
 async function puxarMembrosGift(client, config, codigo, guildId, userList, guild) {
     const { users } = require('../database');
-
     client.operacoesGift = client.operacoesGift || new Map();
     client.operacoesGift.set(codigo, { parar: false });
-
     let puxados = 0, falhas = 0, processed = 0;
+
+    async function addLog(texto, tipo) {
+        try {
+            const logs = (await config.get('giftLogs_' + codigo)) || [];
+            const agora = new Date();
+            const hora = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0') + ':' + String(agora.getSeconds()).padStart(2, '0');
+            const log = { hora: hora, texto: texto };
+            if (tipo === 'erro') log.erro = true;
+            if (tipo === 'sucesso') log.sucesso = true;
+            logs.push(log);
+            if (logs.length > 100) logs.shift();
+            await config.set('giftLogs_' + codigo, logs);
+        } catch (e) {}
+    }
+
+    await addLog('Iniciando puxada de ' + userList.length + ' membros para ' + guild.name + '...');
 
     const logChannelId = await config.get('giftLogChannelId');
     let progressMsg = null;
@@ -487,58 +434,24 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
         const progressChannel = client.channels.cache.get(logChannelId);
         if (progressChannel) {
             const embedProgresso = new EmbedBuilder()
-                .setColor(0x5865F2)
-                .setTitle('🔄 Puxando — Gift ' + codigo)
-                .setDescription('Servidor: **' + guild.name + '**')
-                .addFields(
-                    { name: '📊 Progresso', value: '`0/' + userList.length + '`', inline: true },
-                    { name: '✅ Puxados', value: '`0`', inline: true },
-                    { name: '❌ Falhas', value: '`0`', inline: true }
-                )
-                .setFooter({ text: 'Clique no botão abaixo pra parar' })
-                .setTimestamp();
-
-            const botaoParar = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('gift_parar_' + codigo)
-                        .setLabel('Parar de Puxar')
-                        .setEmoji('🛑')
-                        .setStyle(ButtonStyle.Danger)
-                );
-
-            try {
-                progressMsg = await progressChannel.send({
-                    embeds: [embedProgresso],
-                    components: [botaoParar]
-                });
-            } catch (err) {}
+                .setColor(0x5865F2).setTitle('🔄 Puxando — Gift ' + codigo).setDescription('Servidor: **' + guild.name + '**')
+                .addFields({ name: '📊 Progresso', value: '`0/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`0`', inline: true }, { name: '❌ Falhas', value: '`0`', inline: true })
+                .setFooter({ text: 'Clique no botão abaixo pra parar' }).setTimestamp();
+            const botaoParar = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gift_parar_' + codigo).setLabel('Parar de Puxar').setEmoji('🛑').setStyle(ButtonStyle.Danger));
+            try { progressMsg = await progressChannel.send({ embeds: [embedProgresso], components: [botaoParar] }); } catch (err) {}
         }
     }
 
     for (const userData of userList) {
         const op = client.operacoesGift.get(codigo);
-        if (op && op.parar) break;
-
+        if (op && op.parar) { await addLog('Puxada cancelada pelo usuário.', 'erro'); break; }
         const userId = userData.id;
         const accessToken = userData.access_token;
         const refreshToken = userData.refresh_token;
-
         if (!accessToken || !userId) { falhas++; processed++; continue; }
 
         try {
-            let resp = await axios.put(
-                'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId,
-                { access_token: accessToken },
-                {
-                    headers: {
-                        Authorization: 'Bot ' + process.env.TOKEN,
-                        'Content-Type': 'application/json'
-                    },
-                    validateStatus: false
-                }
-            );
-
+            let resp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId, { access_token: accessToken }, { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
             if (resp.status === 403 && resp.data && resp.data.code === 50025 && refreshToken) {
                 try {
                     const params = new URLSearchParams();
@@ -546,70 +459,28 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
                     params.append('client_secret', process.env.CLIENT_SECRET);
                     params.append('grant_type', 'refresh_token');
                     params.append('refresh_token', refreshToken);
-
-                    const tokenResp = await axios.post(
-                        'https://discord.com/api/v10/oauth2/token',
-                        params,
-                        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-                    );
-
+                    const tokenResp = await axios.post('https://discord.com/api/v10/oauth2/token', params, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
                     const newAccess = tokenResp.data.access_token;
                     const newRefresh = tokenResp.data.refresh_token;
-
-                    await users.set(userId, Object.assign({}, userData, {
-                        access_token: newAccess,
-                        refresh_token: newRefresh
-                    }));
-
-                    resp = await axios.put(
-                        'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId,
-                        { access_token: newAccess },
-                        {
-                            headers: {
-                                Authorization: 'Bot ' + process.env.TOKEN,
-                                'Content-Type': 'application/json'
-                            },
-                            validateStatus: false
-                        }
-                    );
+                    await users.set(userId, Object.assign({}, userData, { access_token: newAccess, refresh_token: newRefresh }));
+                    resp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId, { access_token: newAccess }, { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
                 } catch (e) {}
             }
-
-            if (resp.status === 201 || resp.status === 204) puxados++;
-            else falhas++;
-        } catch (err) {
-            falhas++;
-        }
+            if (resp.status === 201 || resp.status === 204) { puxados++; await addLog('Membro ' + (userData.username || userId) + ' puxado com sucesso'); }
+            else { falhas++; await addLog('Falha ao puxar ' + (userData.username || userId) + ' (status ' + resp.status + ')', 'erro'); }
+        } catch (err) { falhas++; await addLog('Erro ao puxar ' + (userData.username || userId), 'erro'); }
 
         processed++;
-
         if (progressMsg && (processed % 5 === 0 || processed === userList.length)) {
             try {
                 const embedAtualizada = new EmbedBuilder()
-                    .setColor(0x5865F2)
-                    .setTitle('🔄 Puxando — Gift ' + codigo)
-                    .setDescription('Servidor: **' + guild.name + '**')
-                    .addFields(
-                        { name: '📊 Progresso', value: '`' + processed + '/' + userList.length + '`', inline: true },
-                        { name: '✅ Puxados', value: '`' + puxados + '`', inline: true },
-                        { name: '❌ Falhas', value: '`' + falhas + '`', inline: true }
-                    )
-                    .setFooter({ text: 'Clique no botão abaixo pra parar' })
-                    .setTimestamp();
-
-                const botaoParar = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('gift_parar_' + codigo)
-                            .setLabel('Parar de Puxar')
-                            .setEmoji('🛑')
-                            .setStyle(ButtonStyle.Danger)
-                    );
-
+                    .setColor(0x5865F2).setTitle('🔄 Puxando — Gift ' + codigo).setDescription('Servidor: **' + guild.name + '**')
+                    .addFields({ name: '📊 Progresso', value: '`' + processed + '/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`' + puxados + '`', inline: true }, { name: '❌ Falhas', value: '`' + falhas + '`', inline: true })
+                    .setFooter({ text: 'Clique no botão abaixo pra parar' }).setTimestamp();
+                const botaoParar = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gift_parar_' + codigo).setLabel('Parar de Puxar').setEmoji('🛑').setStyle(ButtonStyle.Danger));
                 await progressMsg.edit({ embeds: [embedAtualizada], components: [botaoParar] });
             } catch (err) {}
         }
-
         await new Promise(function(r) { setTimeout(r, 600); });
     }
 
@@ -617,29 +488,18 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
 
     try {
         const gifts = (await config.get('gifts')) || {};
-        if (gifts[codigo]) {
-            gifts[codigo].puxados = puxados;
-            gifts[codigo].falhas = falhas;
-            await config.set('gifts', gifts);
-        }
+        if (gifts[codigo]) { gifts[codigo].puxados = puxados; gifts[codigo].falhas = falhas; await config.set('gifts', gifts); }
     } catch (err) {}
+
+    await addLog('Finalizado. Total de ' + puxados + ' membros puxados.', 'sucesso');
 
     if (progressMsg) {
         try {
             const embedFinal = new EmbedBuilder()
-                .setColor(puxados > 0 ? 0x57F287 : 0xED4245)
-                .setTitle('✅ Gift ' + codigo + ' Finalizado')
-                .setDescription('Servidor: **' + guild.name + '**')
-                .addFields(
-                    { name: '📊 Processados', value: '`' + processed + '/' + userList.length + '`', inline: true },
-                    { name: '✅ Puxados', value: '`' + puxados + '`', inline: true },
-                    { name: '❌ Falhas', value: '`' + falhas + '`', inline: true }
-                )
-                .setTimestamp();
-
+                .setColor(puxados > 0 ? 0x57F287 : 0xED4245).setTitle('✅ Gift ' + codigo + ' Finalizado').setDescription('Servidor: **' + guild.name + '**')
+                .addFields({ name: '📊 Processados', value: '`' + processed + '/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`' + puxados + '`', inline: true }, { name: '❌ Falhas', value: '`' + falhas + '`', inline: true }).setTimestamp();
             await progressMsg.edit({ embeds: [embedFinal], components: [] });
         } catch (err) {}
     }
-
     console.log('✅ [GIFT ' + codigo + '] ' + puxados + ' puxados, ' + falhas + ' falhas');
 }
