@@ -78,7 +78,7 @@ module.exports = (app, client) => {
         '</div>' +
         '<div class="actions">' +
         '<a class="btn" href="/">← Voltar pra loja</a>' +
-        '<a class="btn-secondary" href="https://discord.gg/fuzion" target="_blank">Entrar no Discord</a>' +
+        '<a class="btn-secondary" href="https://discord.gg/d6mKKZa2QT" target="_blank">Entrar no Discord</a>' +
         '</div>' +
         '<div class="footer">FUZION GIFTS <span>•</span> MANUTENÇÃO <span>•</span> VOLTAMOS EM BREVE</div>' +
         '</div></body></html>';
