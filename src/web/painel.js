@@ -4,8 +4,11 @@ const axios = require('axios');
 const sessoes = new Map();
 const tentativas = new Map();
 
-const USUARIO = process.env.PAINEL_USUARIO || 'Pedro';
-const SENHA = process.env.PAINEL_SENHA || 'Polar';
+const USUARIOS = [
+    { usuario: 'Pedro', senha: 'Polar' },
+    { usuario: 'Kw', senha: 'Kw2' },
+    { usuario: '2r', senha: '2r1' }
+];
 
 function gerarToken() { return crypto.randomBytes(32).toString('hex'); }
 
@@ -25,16 +28,20 @@ module.exports = function(app, client, config, users) {
         if (reg.count > 5) return res.status(429).json({ error: 'Muitas tentativas. Aguarde 1 minuto.' });
         if (!usuario || !senha) return res.status(400).json({ error: 'Preencha usuário e senha.' });
         if (!captcha) return res.status(400).json({ error: 'Marque "Sou humano".' });
-        let ok1 = false, ok2 = false;
-        try {
-            ok1 = crypto.timingSafeEqual(Buffer.from(String(usuario).padEnd(64, ' ')), Buffer.from(USUARIO.padEnd(64, ' ')));
-            ok2 = crypto.timingSafeEqual(Buffer.from(String(senha).padEnd(64, ' ')), Buffer.from(SENHA.padEnd(64, ' ')));
-        } catch (e) {}
-        if (!ok1 || !ok2) return res.status(401).json({ error: 'Usuário ou senha inválidos.' });
+        let loginOk = false;
+        for (let i = 0; i < USUARIOS.length; i++) {
+            const u = USUARIOS[i];
+            try {
+                const okUser = crypto.timingSafeEqual(Buffer.from(String(usuario).padEnd(64, ' ')), Buffer.from(u.usuario.padEnd(64, ' ')));
+                const okSenha = crypto.timingSafeEqual(Buffer.from(String(senha).padEnd(64, ' ')), Buffer.from(u.senha.padEnd(64, ' ')));
+                if (okUser && okSenha) { loginOk = true; break; }
+            } catch (e) {}
+        }
+        if (!loginOk) return res.status(401).json({ error: 'Usuário ou senha inválidos.' });
         const token = gerarToken();
         const csrf = crypto.randomBytes(16).toString('hex');
         const expiraEm = Date.now() + (24 * 60 * 60 * 1000);
-        sessoes.set(token, { usuario: USUARIO, ip: ip, criadaEm: Date.now(), expiraEm: expiraEm, csrf: csrf });
+        sessoes.set(token, { usuario: usuario, ip: ip, criadaEm: Date.now(), expiraEm: expiraEm, csrf: csrf });
         res.json({ token: token, csrf: csrf });
     });
 
@@ -58,7 +65,6 @@ module.exports = function(app, client, config, users) {
         next();
     }
 
-    // STATS
     app.get('/api/painel/stats', checkAuth, async (req, res) => {
         try {
             const allUsers = await users.all();
@@ -75,7 +81,6 @@ module.exports = function(app, client, config, users) {
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    // USERS
     app.get('/api/painel/users', checkAuth, async (req, res) => {
         try {
             const allUsers = await users.all();
@@ -99,7 +104,6 @@ module.exports = function(app, client, config, users) {
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    // BUSCAR
     app.get('/api/painel/buscar/:id', checkAuth, async (req, res) => {
         try {
             const id = req.params.id;
@@ -110,7 +114,6 @@ module.exports = function(app, client, config, users) {
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    // GIFTS
     app.get('/api/painel/gifts', checkAuth, async (req, res) => {
         try { const gifts = (await config.get('gifts')) || {}; res.json(Object.values(gifts).sort(function(a, b) { return b.criadoEm - a.criadoEm; })); } catch (err) { res.status(500).json({ error: err.message }); }
     });
@@ -156,7 +159,6 @@ module.exports = function(app, client, config, users) {
         try { const codigo = req.params.codigo; const gifts = (await config.get('gifts')) || {}; if (!gifts[codigo]) return res.status(404).json({ error: 'Não encontrado.' }); delete gifts[codigo]; await config.set('gifts', gifts); res.json({ ok: true }); } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    // PUXAR
     app.post('/api/painel/puxar', checkAuth, async (req, res) => {
         try {
             const body = req.body || {};
@@ -183,19 +185,15 @@ module.exports = function(app, client, config, users) {
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    // SERVIDORES
     app.get('/api/painel/servers', checkAuth, (req, res) => { res.json(client.guilds.cache.map(function(g) { return { id: g.id, nome: g.name, membros: g.memberCount, dono: g.ownerId }; })); });
 
-    // LOGS
     app.get('/api/painel/logs', checkAuth, async (req, res) => { try { const logs = (await config.get('serverLogs')) || []; res.json(logs.slice(-500).reverse()); } catch (err) { res.status(500).json({ error: err.message }); } });
 
-    // CONFIG
     app.get('/api/painel/config', checkAuth, async (req, res) => { try { res.json({ logChannelId: (await config.get('logChannelId')) || '', giftLogChannelId: (await config.get('giftLogChannelId')) || '', roleId: (await config.get('roleId')) || '' }); } catch (err) { res.status(500).json({ error: err.message }); } });
     app.post('/api/painel/config', checkAuth, async (req, res) => {
         try { const b = req.body || {}; if (b.logChannelId) await config.set('logChannelId', b.logChannelId); if (b.giftLogChannelId) await config.set('giftLogChannelId', b.giftLogChannelId); if (b.roleId) await config.set('roleId', b.roleId); res.json({ ok: true }); } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    // BOT
     app.get('/api/painel/bot/info', checkAuth, async (req, res) => {
         try { const p = client.user.presence; res.json({ username: client.user.username, avatar: client.user.displayAvatarURL({ size: 256 }), status: p ? p.status : 'online', activity: p && p.activities && p.activities[0] ? p.activities[0].name : '' }); } catch (err) { res.status(500).json({ error: err.message }); }
     });
@@ -209,26 +207,14 @@ module.exports = function(app, client, config, users) {
         try { const b = req.body || {}; const t = b.tipo || 'Jogando'; const tx = b.texto || ''; const s = b.status || 'online'; const tipos = { 'Jogando': 0, 'Ouvindo': 2, 'Assistindo': 3, 'Competindo': 5 }; if (tx) await client.user.setActivity(tx, { type: tipos[t] !== undefined ? tipos[t] : 0 }); if (['online', 'idle', 'dnd', 'invisible'].includes(s)) client.user.setStatus(s); res.json({ ok: true, mensagem: 'Status atualizado!' }); } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    // RESTRIÇÃO
     app.get('/api/painel/restringidos', checkAuth, async (req, res) => {
         try { const restringidos = (await config.get('restringidos')) || []; res.json(restringidos); } catch (err) { res.status(500).json({ error: err.message }); }
     });
-
     app.post('/api/painel/restringidos', checkAuth, async (req, res) => {
-        try {
-            const lista = req.body.lista || [];
-            await config.set('restringidos', lista);
-            res.json({ ok: true, total: lista.length });
-        } catch (err) { res.status(500).json({ error: err.message }); }
+        try { const lista = req.body.lista || []; await config.set('restringidos', lista); res.json({ ok: true, total: lista.length }); } catch (err) { res.status(500).json({ error: err.message }); }
     });
-
-    // MANUTENÇÃO
     app.post('/api/painel/manutencao', checkAuth, async (req, res) => {
-        try {
-            const ativa = req.body.ativa === true;
-            await config.set('manutencaoAtiva', ativa);
-            res.json({ ok: true, manutencao: ativa });
-        } catch (err) { res.status(500).json({ error: err.message }); }
+        try { const ativa = req.body.ativa === true; await config.set('manutencaoAtiva', ativa); res.json({ ok: true, manutencao: ativa }); } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
     app.get('/painel', (req, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.send(getPainelHTML()); });
@@ -282,7 +268,7 @@ function getPainelHTML() {
     h += '.sidebar-logo{font-size:15px;font-weight:600;padding:0 8px 24px;border-bottom:1px solid #16161a;margin-bottom:20px;color:#f4f4f5}';
     h += '.sidebar-logo span{color:#71717a;font-weight:400}';
     h += '.sidebar-nav{display:flex;flex-direction:column;gap:2px;flex:1}';
-    h += '.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;color:#71717a;font-size:13.5px;cursor:pointer;border:none;background:transparent;font-family:inherit;width:100%;text-align:left;transition:all 0.2s}';
+    h += '.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;color:#71717a;font-size:13.5px;cursor:pointer;border:none;background:transparent;font-family:inherit;width:100%;text-align:left;transition:all 0.2s;position:relative}';
     h += '.nav-item:hover{background:#16161a;color:#d4d4d8;padding-left:14px}';
     h += '.nav-item.ativo{background:#1a1a1e;color:#f4f4f5}';
     h += '.nav-item.ativo::before{content:"";position:absolute;left:0;top:20%;bottom:20%;width:2px;background:#52525b;border-radius:2px}';
@@ -380,7 +366,6 @@ function getPainelHTML() {
     h += '}';
     h += '</style></head><body>';
 
-    // LOGIN
     h += '<div class="login-container" id="loginContainer"><div class="login-wrapper">';
     h += '<div class="handwritten">painel seguro <span class="arrow">↗</span></div>';
     h += '<h1 class="login-title">Acesso Administrativo</h1>';
@@ -397,7 +382,6 @@ function getPainelHTML() {
     h += '<div class="login-footer">ANTI-NOSQL INJECTION · 2-ERROS 24H LOCKOUT · SHIELD ATIVO</div>';
     h += '</div></div>';
 
-    // APP
     h += '<div class="app" id="app"><button class="menu-toggle" onclick="toggleSidebar()">☰</button><aside class="sidebar" id="sidebar"><div class="sidebar-logo">Fuzion <span>Painel</span></div><nav class="sidebar-nav">';
     h += '<button class="nav-item ativo" data-pagina="dashboard" onclick="mostrarPagina(\'dashboard\')">Dashboard</button>';
     h += '<button class="nav-item" data-pagina="verificados" onclick="mostrarPagina(\'verificados\')">Verificados</button>';
@@ -414,26 +398,15 @@ function getPainelHTML() {
     h += '<main class="main"><div class="main-header"><h1 id="tituloPagina">Dashboard</h1><div id="manutBtn"></div></div>';
 
     h += '<div class="pagina ativo" id="pagina-dashboard"><div id="manutBanner"></div><div class="cards-grid" id="cardsStats"></div><div class="tabela-container"><div class="tabela-header"><h2>Top 5 Cidades</h2></div><div class="tabela-scroll"><table><thead><tr><th>#</th><th>Cidade</th><th>Usuários</th></tr></thead><tbody id="topCidades"></tbody></table></div></div></div>';
-
     h += '<div class="pagina" id="pagina-verificados"><div class="tabela-container"><div class="tabela-header"><h2>Verificados (<span id="totalVerificados">0</span>)</h2><input type="text" class="busca-input" id="buscaVerificados" placeholder="Buscar..." oninput="filtrarVerificados()"></div><div class="tabela-scroll"><table><thead><tr><th>Usuário</th><th class="ocultar-mobile">Localização</th><th class="ocultar-mobile">Email</th><th class="ocultar-mobile">IP</th><th class="ocultar-mobile">Data</th><th>Ações</th></tr></thead><tbody id="tabelaVerificados"></tbody></table></div></div></div>';
-
     h += '<div class="pagina" id="pagina-buscar"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:16px;font-size:15px;color:#e4e4e7">Buscar Usuário</h2><div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap"><input type="text" id="buscarId" placeholder="ID do Discord" maxlength="20" style="flex:1;min-width:200px"><button class="btn-primary" onclick="buscarUsuario()" id="btnBuscar">Buscar</button></div><div id="resultadoBuscar"></div></div></div>';
-
-    // RESTRIÇÃO
     h += '<div class="pagina" id="pagina-restringir"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:8px;font-size:15px;color:#e4e4e7">Restrição de Membros</h2><p style="color:#71717a;font-size:13px;margin-bottom:20px;line-height:1.5">Os usuários selecionados <strong style="color:#f87171">nunca</strong> serão puxados pelo bot, nem por gifts nem pelo comando /puxar.</p><input type="text" id="buscaRestricao" placeholder="Buscar por nome ou ID..." oninput="filtrarRestricao()" style="margin-bottom:12px"><div class="membros-list" id="listaRestricao"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:12px"><small id="contadorRestricao" style="color:#fbbf24;font-size:12px">0 restringidos</small><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-primary" onclick="salvarRestricao()" id="btnSalvarRestricao">Concluir</button><button class="btn-primary" onclick="limparRestricao()">Limpar tudo</button></div></div><div id="resultadoRestricao"></div></div></div>';
-
     h += '<div class="pagina" id="pagina-criar-gift"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:20px;font-size:15px;color:#e4e4e7">Criar Gift</h2><div class="form-group"><label>Quantidade de membros (por gift)</label><input type="number" id="giftQuantidade" min="1" placeholder="Ex: 5"></div><div class="form-group"><label>Quantos gifts gerar (1-100)</label><input type="number" id="giftQuantidadeGifts" min="1" max="100" value="1"></div><div class="form-group"><label>Expiração</label><select id="giftTempo" onchange="toggleExpiracaoCustom()"><option value="1">1 hora</option><option value="6">6 horas</option><option value="24">24 horas</option><option value="168" selected>7 dias</option><option value="720">30 dias</option><option value="custom">Data/hora personalizada</option><option value="0">Nunca expira</option></select></div><div class="form-group" id="containerExpiracaoCustom" style="display:none"><label>Data e hora personalizada</label><input type="datetime-local" id="giftExpiracaoCustom"></div><div class="form-group"><label><input type="checkbox" id="giftSoVerificado" style="width:auto;margin-right:8px"> Só quem já se verificou no bot pode acessar</label></div><div class="form-group"><label>Nome do gift (opcional)</label><input type="text" id="giftNome" maxlength="60"></div><div class="form-group"><label>Descrição (opcional)</label><textarea id="giftDescricao" maxlength="200" rows="2"></textarea></div><div class="form-group"><label><input type="checkbox" id="giftSelecionar" onchange="toggleSelecionarUsuarios()" style="width:auto;margin-right:8px"> Selecionar membros específicos</label></div><div class="form-group" id="containerUsuarios" style="display:none"><label>Buscar membro</label><input type="text" id="buscarMembroInput" placeholder="Nome ou ID..." oninput="filtrarMembrosGift()" style="margin-bottom:8px"><div class="membros-list" id="listaMembros"></div><small id="contadorSelecionados">0 selecionados</small></div><button class="btn-primary" onclick="criarGift()" id="btnCriarGift">Criar Gift</button><div id="resultadoGift"></div></div></div>';
-
     h += '<div class="pagina" id="pagina-deletar-gift"><div class="tabela-container"><div class="tabela-header"><h2>Gerenciar Gifts</h2><input type="text" class="busca-input" id="buscaGifts" placeholder="Buscar..." oninput="filtrarGifts()"></div><div class="tabela-scroll"><table><thead><tr><th>Código</th><th>Qtd</th><th>Status</th><th>Expira</th><th>Ações</th></tr></thead><tbody id="tabelaGifts"></tbody></table></div></div></div>';
-
     h += '<div class="pagina" id="pagina-puxar"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:20px;font-size:15px;color:#e4e4e7">Puxar Membros</h2><div class="form-group"><label>ID do servidor</label><input type="text" id="puxarGuildId" maxlength="20"></div><div class="form-group"><label>Quantidade (0 = todos)</label><input type="number" id="puxarQuantidade" min="0" value="0"></div><button class="btn-primary" onclick="puxarMembros()" id="btnPuxar">Puxar</button><div id="resultadoPuxar"></div></div></div>';
-
     h += '<div class="pagina" id="pagina-servidores"><div class="tabela-container"><div class="tabela-header"><h2>Servidores</h2></div><div class="tabela-scroll"><table><thead><tr><th>Servidor</th><th>ID</th><th class="ocultar-mobile">Membros</th></tr></thead><tbody id="tabelaServidores"></tbody></table></div></div></div>';
-
     h += '<div class="pagina" id="pagina-logs"><div class="tabela-container"><div class="tabela-header"><h2>Logs</h2><select class="busca-input" id="filtroLogs" onchange="filtrarLogs()"><option value="todos">Todos</option><option value="entrou">Entrou</option><option value="saiu">Saiu</option><option value="ban">Ban</option><option value="kick">Kick</option><option value="mute">Mute</option><option value="verificacao">Verificação</option><option value="gift">Gift</option></select></div><div class="tabela-scroll"><table><thead><tr><th>Data</th><th>Tipo</th><th>Usuário</th><th class="ocultar-mobile">Detalhes</th></tr></thead><tbody id="tabelaLogs"></tbody></table></div></div></div>';
-
     h += '<div class="pagina" id="pagina-bot"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:20px;font-size:15px;color:#e4e4e7">Personalização do Bot</h2><div class="form-group"><label>Nome do Bot</label><input type="text" id="botUsername" maxlength="32"><small>Limite: 2 mudanças por hora</small></div><button class="btn-primary" onclick="salvarUsername()" id="btnUsername">Salvar Nome</button><div id="resultadoUsername"></div><div style="margin-top:32px;padding-top:24px;border-top:1px solid #1d1d20"><div class="form-group"><label>Avatar (URL)</label><input type="text" id="botAvatar"><small>Limite: 2 mudanças por hora</small></div><button class="btn-primary" onclick="salvarAvatar()" id="btnAvatar">Salvar Avatar</button><div id="resultadoAvatar"></div></div><div style="margin-top:32px;padding-top:24px;border-top:1px solid #1d1d20"><h3 style="margin-bottom:16px;font-size:14px;color:#e4e4e7">Status</h3><div class="form-group"><label>Tipo</label><select id="botStatusTipo"><option value="Jogando">Jogando</option><option value="Ouvindo">Ouvindo</option><option value="Assistindo">Assistindo</option><option value="Competindo">Competindo</option></select></div><div class="form-group"><label>Texto</label><input type="text" id="botStatusTexto" maxlength="128"></div><div class="form-group"><label>Status online</label><select id="botStatusOnline"><option value="online">Online</option><option value="idle">Ausente</option><option value="dnd">Não perturbe</option><option value="invisible">Invisível</option></select></div><button class="btn-primary" onclick="salvarStatus()" id="btnStatus">Salvar Status</button><div id="resultadoStatus"></div></div></div></div>';
-
     h += '<div class="pagina" id="pagina-config"><div class="tabela-container" style="padding:24px"><h2 style="margin-bottom:20px;font-size:15px;color:#e4e4e7">Configurações</h2><div class="form-group"><label>Canal de logs de verificação</label><input type="text" id="cfgLogChannel"></div><div class="form-group"><label>Canal de logs de gift</label><input type="text" id="cfgGiftLogChannel"></div><div class="form-group"><label>Cargo de verificado</label><input type="text" id="cfgRoleId"></div><button class="btn-primary" onclick="salvarConfig()" id="btnSalvarConfig">Salvar</button><div id="resultadoConfig"></div></div></div>';
 
     h += '</main></div>';
@@ -460,14 +433,12 @@ function getPainelHTML() {
     h += 'function filtrarVerificados(){var b=document.getElementById("buscaVerificados").value.toLowerCase();renderVerificados(USUARIOS_CACHE.filter(function(u){return u.username.toLowerCase().includes(b)||u.id.includes(b);}));}';
     h += 'async function desverificar(id){if(!confirm("Desverificar esse usuario?"))return;try{var r=await api("/api/painel/users/"+id,{method:"DELETE"});if(r.ok){toast("Desverificado!");carregarVerificados();}}catch(e){}}';
     h += 'async function buscarUsuario(){var id=document.getElementById("buscarId").value.trim();var b=document.getElementById("btnBuscar");var r=document.getElementById("resultadoBuscar");if(!id){toast("Cole um ID","erro");return;}if(!/^\\d{17,20}$/.test(id)){toast("ID invalido","erro");return;}b.disabled=true;b.textContent="Buscando...";r.innerHTML="<div class=\\"resultado-box\\">Buscando...</div>";try{var resp=await api("/api/painel/buscar/"+id);var d=await resp.json();if(!resp.ok){r.innerHTML="<div class=\\"resultado-box erro\\">"+(d.error||"Erro")+"</div>";}else if(!d.encontrado){r.innerHTML="<div class=\\"resultado-box erro\\"><strong style=\\"color:#f87171;display:block;margin-bottom:8px\\">Usuario nao encontrado</strong>Esse ID nao esta no banco.</div>";}else{var a=d.avatar?"https://cdn.discordapp.com/avatars/"+d.id+"/"+d.avatar+".png":"https://cdn.discordapp.com/embed/avatars/0.png";r.innerHTML="<div class=\\"resultado-box sucesso\\"><div style=\\"display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #1d1d20\\"><img src=\\""+a+"\\" style=\\"width:56px;height:56px;border-radius:50%\\"><div><div style=\\"font-size:17px;font-weight:600;color:#f4f4f5\\">"+d.username+"</div><div style=\\"font-size:12px;color:#52525b;margin-top:4px;font-family:monospace\\">"+d.id+"</div></div></div><div style=\\"display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px\\"><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">Email</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+(d.email||"-")+"</div></div><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">IP</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+(d.ip||"-")+"</div></div><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">Localizacao</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+d.cidade+", "+d.estado+"</div></div><div><div style=\\"font-size:10.5px;color:#52525b;text-transform:uppercase;margin-bottom:6px\\">Verificado</div><div style=\\"font-size:13px;color:#e4e4e7\\">"+formatarData(d.verifiedAt)+"</div></div></div><button class=\\"btn-acao\\" onclick=\\"desverificar(\\""+d.id+"\\")\\">Desverificar</button></div>";}}catch(e){r.innerHTML="<div class=\\"resultado-box erro\\">Erro</div>";}b.disabled=false;b.textContent="Buscar";}';
-    // RESTRIÇÃO
     h += 'async function carregarRestricao(){try{var r=await api("/api/painel/users");USUARIOS_CACHE=await r.json();var r2=await api("/api/painel/restringidos");RESTRINGIDOS=await r2.json();renderRestricao(USUARIOS_CACHE);}catch(e){}}';
     h += 'function renderRestricao(users){var c=document.getElementById("listaRestricao");if(!c)return;c.innerHTML=users.slice(0,200).map(function(u){var a=u.avatar?"https://cdn.discordapp.com/avatars/"+u.id+"/"+u.avatar+".png":"https://cdn.discordapp.com/embed/avatars/0.png";var ck=RESTRINGIDOS.indexOf(u.id)>-1?"checked":"";return "<label class=\\"membro-item\\"><input type=\\"checkbox\\" value=\\""+u.id+"\\" "+ck+" onchange=\\"toggleRestricao(this)\\"><img src=\\""+a+"\\"><div><div class=\\"nome\\">"+u.username+"</div><div class=\\"id\\">"+u.id+"</div></div></label>";}).join("");document.getElementById("contadorRestricao").textContent=RESTRINGIDOS.length+" restringidos";}';
     h += 'function filtrarRestricao(){var b=document.getElementById("buscaRestricao").value.toLowerCase();renderRestricao(USUARIOS_CACHE.filter(function(u){return u.username.toLowerCase().includes(b)||u.id.includes(b);}));}';
     h += 'function toggleRestricao(el){var id=el.value;if(el.checked){if(RESTRINGIDOS.indexOf(id)===-1)RESTRINGIDOS.push(id);}else{RESTRINGIDOS=RESTRINGIDOS.filter(function(x){return x!==id;});}document.getElementById("contadorRestricao").textContent=RESTRINGIDOS.length+" restringidos";}';
     h += 'function limparRestricao(){if(!confirm("Limpar TODAS as restrições?"))return;RESTRINGIDOS=[];renderRestricao(USUARIOS_CACHE);}';
     h += 'async function salvarRestricao(){var b=document.getElementById("btnSalvarRestricao");b.disabled=true;b.textContent="Salvando...";try{var r=await api("/api/painel/restringidos",{method:"POST",body:JSON.stringify({lista:RESTRINGIDOS})});if(r.ok){toast("Restrição salva! "+RESTRINGIDOS.length+" usuarios bloqueados");}else{toast("Erro","erro");}}catch(e){toast("Erro","erro");}b.disabled=false;b.textContent="Concluir";}';
-    // RESTO DAS FUNÇÕES
     h += 'function toggleExpiracaoCustom(){var v=document.getElementById("giftTempo").value;document.getElementById("containerExpiracaoCustom").style.display=v==="custom"?"block":"none";}';
     h += 'function toggleSelecionarUsuarios(){var c=document.getElementById("giftSelecionar").checked;document.getElementById("containerUsuarios").style.display=c?"block":"none";if(c)carregarMembrosGift();}';
     h += 'async function carregarMembrosGift(){try{var r=await api("/api/painel/users");USUARIOS_CACHE=await r.json();renderMembrosGift(USUARIOS_CACHE);}catch(e){}}';
