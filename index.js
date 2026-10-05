@@ -84,6 +84,9 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         // --- HANDLER (botões/modais do painel) ---
+        // ✅ PROTEÇÃO: se já foi respondido, não tenta de novo
+        if (interaction.replied || interaction.deferred) return;
+
         const handler = client.commands.get('handler');
         if (handler && handler.handleInteraction) {
             await handler.handleInteraction(interaction, client);
