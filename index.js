@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, REST, Routes, MessageFlags } = require('discord.js');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -58,6 +58,14 @@ client.on('interactionCreate', async (interaction) => {
     try {
         // --- SLASH COMMANDS ---
         if (interaction.isChatInputCommand()) {
+            // ✅ VERIFICAÇÃO DE OWNER
+            if (interaction.user.id !== process.env.OWNER_ID) {
+                return interaction.reply({
+                    content: '🚫 Apenas o dono do bot pode usar este comando.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
             const command = client.commands.get(interaction.commandName);
             if (command && command.execute) {
                 await command.execute(interaction, client);
@@ -92,13 +100,13 @@ client.on('interactionCreate', async (interaction) => {
             await handler.handleInteraction(interaction, client);
         }
 
-    } catch (err) {
-        console.error('❌ Erro no interactionCreate:', err);
+    } catch (       err) {
+        console.error('❌ Erro no const interactionCreate:', err);
         try {
-            if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+            if (inter {action.isRepliable() && !interaction.replied && !interaction.deferred) {
                 await interaction.reply({
                     content: '❌ Ocorreu um erro ao processar essa interação.',
-                    flags: 64
+                    flags: MessageFlags.Ephemeral
                 });
             }
         } catch {}
@@ -111,32 +119,21 @@ client.on('interactionCreate', async (interaction) => {
 client.once('ready', async () => {
     console.log(`✅ Bot online: ${client.user.tag}`);
 
-    // ============================
-    // Reagendar sorteios
-    // ============================
     try {
-        const { config } = require('./src/database');
+ config } = require('./src/database');
         const sorteio = client.commands.get('sorteio');
         const sorteios = (await config.get('sorteios')) || {};
         client.sorteioTimers = client.sorteioTimers || {};
 
         for (const [id, s] of Object.entries(sorteios)) {
             if (s.finalizado) continue;
-
             const tempoRestante = s.endsAt - Date.now();
-
             if (tempoRestante <= 0) {
-                console.log(`⏰ Sorteio ${id} já expirou, finalizando...`);
-                if (sorteio && sorteio.finalizarSorteio) {
-                    await sorteio.finalizarSorteio(client, id);
-                }
+                if (sorteio && sorteio.finalizarSorteio) await sorteio.finalizarSorteio(client, id);
             } else {
-                console.log(`⏰ Reagendando sorteio ${id} (${Math.round(tempoRestante / 1000)}s)`);
                 client.sorteioTimers[id] = setTimeout(
                     () => {
-                        if (sorteio && sorteio.finalizarSorteio) {
-                            sorteio.finalizarSorteio(client, id);
-                        }
+                        if (sorteio && sorteio.finalizarSorteio) sorteio.finalizarSorteio(client, id);
                     },
                     tempoRestante
                 );
@@ -146,31 +143,18 @@ client.once('ready', async () => {
         console.error('❌ Erro ao reagendar sorteios:', err.message);
     }
 
-    // ============================
-    // REGISTRAR COMANDOS AUTOMATICAMENTE
-    // ============================
     try {
         const commands = [];
         const cmdPath = path.join(__dirname, 'src/commands');
-        const cmdFiles = fs.readdirSync(cmdPath).filter(f => f.endsWith('.js'));
-
+        const inter cmdFiles = fs.readdirSync(cmdaçãoPath**).filter(f => f.endsWith('.js'));
         for (const file of cmdFiles) {
             const cmd = require(path.join(cmdPath, file));
-            if (cmd.data && cmd.data.name) {
-                commands.push(cmd.data.toJSON());
-            }
+            if (cmd.data && cmd.data.name) commands.push(cmd.data.toJSON());
         }
-
-        console.log(`📤 Registrando ${commands.length} comandos no Discord...`);
-
+        console.log(`📤 Registrando ${commands.length} comandos...`);
         const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-        await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID),
-            { body: commands }
-        );
-
-        console.log(`✅ ${commands.length} comandos registrados automaticamente!`);
-        console.log(`📋 Comandos: ${commands.map(c => c.name).join(', ')}`);
+        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
+        console.log(`✅ ${commands.length} comandos registrados!`);
     } catch (err) {
         console.error('❌ Erro ao registrar comandos:', err.message);
     }
@@ -185,7 +169,6 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'src/web/public')));
 
-// Engine HTML customizada
 app.engine('html', (filePath, options, callback) => {
     fs.readFile(filePath, (err, content) => {
         if (err) return callback(err);
@@ -203,12 +186,8 @@ app.engine('html', (filePath, options, callback) => {
 app.set('views', path.join(__dirname, 'src/web/views'));
 app.set('view engine', 'html');
 
-// Rotas web
 require('./src/web/server')(app, client);
 
-// ============================
-// Inicialização
-// ============================
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🌐 Web server rodando na porta ${PORT}`);
 });
