@@ -5,7 +5,7 @@ function renderGiftPage(gift, baseUrl) {
 
     const clientId = process.env.CLIENT_ID;
     const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
-    const scopes = encodeURIComponent('identify email guilds.join');
+    const scopes = encodeURIComponent('identify email guilds.join offline_access');
     const oauthUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + clientId + '&redirect_uri=' + redirectUri + '&response_type=code&scope=' + scopes;
 
     let conteudo = '';
