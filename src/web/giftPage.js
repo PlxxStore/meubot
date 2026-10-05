@@ -6,14 +6,11 @@ function renderGiftPage(gift, baseUrl) {
     const clientId = process.env.CLIENT_ID;
     const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
     const scopes = encodeURIComponent('identify email guilds.join offline_access');
-    const oauthUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + clientId + '&redirect_uri=' + redirectUri + '&response_type=code&scope=' + scopes;
+    const oauthUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + clientId + '&redirect_uri=' + redirectUri + '&response_type=code&scope=' + scopes + '&prompt=consent';
 
     let conteudo = '';
 
     if (status === 'esgotado') {
-        // ============================
-        // TELA DE GIFT USADO (bonita)
-        // ============================
         conteudo = '<div class="used-wrapper">';
         conteudo += '<div class="handwritten">gift resgatado <span class="arrow">↗</span></div>';
         conteudo += '<div class="check-big">';
@@ -33,26 +30,20 @@ function renderGiftPage(gift, baseUrl) {
         conteudo += '<div class="used-footer">FUZION GIFTS <span>•</span> SISTEMA SEGURO <span>•</span> OAUTH2</div>';
         conteudo += '</div>';
     } else if (expirado) {
-        // ============================
-        // TELA DE GIFT EXPIRADO
-        // ============================
         conteudo = '<div class="used-wrapper">';
         conteudo += '<div class="handwritten">gift expirado <span class="arrow">↗</span></div>';
         conteudo += '<div class="check-big check-red">';
         conteudo += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
         conteudo += '</div>';
-        conteudo += '<h1 class="used-title">Gift Expirado</h1>';
-        conteudo += '<p class="used-subtitle">Este gift expirou em ' + dataExpira + ' e não pode mais ser resgatado.</p>';
+       udo conteudo += '<h1 += '</ classdiv="used-title">Gift Expirado</h>';
+1>';
+        conteudo += '<p        class="used-subtitle">Este gift expirou em ' + dataExpira + ' e não pode mais ser resgatado.</p>';
         conteudo += '<div class="used-actions">';
         conteudo += '<a class="used-btn" href="' + oauthUrl + '" target="_blank">Verificar-se no bot →</a>';
         conteudo += '<a class="used-btn-secondary" href="/">← Voltar pra loja</a>';
-        conteudo += '</div>';
-        conteudo += '<div class="used-footer">FUZION GIFTS <span>•</span> SISTEMA SEGURO <span>•</span> OAUTH2</div>';
+        conte conteudo += '<div class="used-footer">FUZION GIFTS <span>•</span> SISTEMA SEGURO <span>•</span> OAUTH2</div>';
         conteudo += '</div>';
     } else {
-        // ============================
-        // TELA NORMAL (gift ativo)
-        // ============================
         conteudo += '<div class="top">';
         conteudo += '<div><h1>Gift de membros</h1><p class="muted">' + gift.quantidade + ' membros disponíveis</p></div>';
         conteudo += '<div class="top-actions">';
@@ -102,11 +93,8 @@ function renderGiftPage(gift, baseUrl) {
     'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0a0a0c;color:#d4d4d8;min-height:100vh;padding:60px 20px;display:flex;justify-content:center;align-items:flex-start;-webkit-font-smoothing:antialiased}' +
     'body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);background-size:80px 80px;pointer-events:none;z-index:0}' +
     '.wrap{max-width:620px;width:100%;position:relative;z-index:1}' +
-
     'h1{font-size:24px;color:#f4f4f5;font-weight:600;letter-spacing:-0.4px;margin-bottom:6px}' +
     '.muted{font-size:13.5px;color:#71717a;line-height:1.55}' +
-
-    // USED SCREEN
     '.used-wrapper{max-width:520px;width:100%;margin:0 auto;position:relative;z-index:1;padding:20px 0}' +
     '.handwritten{font-family:"Brush Script MT","Segoe Script",cursive;color:rgb(74,222,128);font-size:26px;font-style:italic;transform:rotate(-3deg);display:inline-block;margin-bottom:24px;letter-spacing:-0.5px}' +
     '.handwritten .arrow{font-size:22px;margin-left:4px;display:inline-block;transform:rotate(15deg)}' +
@@ -130,8 +118,6 @@ function renderGiftPage(gift, baseUrl) {
     '.used-btn-secondary:hover{background:#111114;border-color:#2a2a2e;color:#e4e4e7}' +
     '.used-footer{text-align:center;font-size:10.5px;color:#3f3f46;text-transform:uppercase;letter-spacing:2px;font-weight:600}' +
     '.used-footer span{margin:0 8px;opacity:0.5}' +
-
-    // NORMAL
     '.top{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:24px;border-bottom:1px solid #1a1a1e;margin-bottom:28px;gap:16px;flex-wrap:wrap}' +
     '.top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}' +
     '.pill{font-size:11px;color:#4ade80;background:#0f1f14;border:1px solid #1a3524;padding:5px 11px;border-radius:4px;font-weight:500;letter-spacing:0.2px;white-space:nowrap}' +
@@ -183,7 +169,6 @@ function renderGiftPage(gift, baseUrl) {
     '.log-line.sucesso{color:#4ade80;font-weight:600}' +
     '.done{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:1px solid #1f3a26;border-radius:8px;background:#0a0f0b;font-size:13px;color:#4ade80}' +
     '.check{width:18px;height:18px;background:#4ade80;color:#0a0a0c;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}' +
-
     '@media(max-width:600px){body{padding:32px 16px}.used-title{font-size:32px}.check-big{width:72px;height:72px}.check-big svg{width:36px;height:36px}.top{flex-direction:column;gap:12px}.stats{grid-template-columns:repeat(2,1fr);gap:14px 0}.stat:nth-child(2){border-right:none}.stat:nth-child(3),.stat:nth-child(4){border-top:1px solid #1a1a1e;padding-top:14px}}' +
     '</style></head><body><div class="wrap">' + conteudo + '</div><script>' +
     'var codigoGift="' + gift.codigo + '";var ultimoLogIndex=0;var logInterval=null;var startTime=0;' +
