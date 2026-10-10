@@ -103,7 +103,7 @@ client.on('interactionCreate', async (interaction) => {
     } catch (       err) {
         console.error('❌ Erro no const interactionCreate:', err);
         try {
-            if (inter {action.isRepliable() && !interaction.replied && !interaction.deferred) {
+            if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
                 await interaction.reply({
                     content: '❌ Ocorreu um erro ao processar essa interação.',
                     flags: MessageFlags.Ephemeral
