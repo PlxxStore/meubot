@@ -43,10 +43,10 @@ if (fs.existsSync(commandsPath)) {
         const command = require(filePath);
         if (command.data && command.data.name) {
             client.commands.set(command.data.name, command);
-            console.log(`✅ Comando carregado: ${command.data.name}`);
+            console.log('✅ Comando carregado: ' + command.data.name);
         } else if (file === 'handler.js') {
             client.commands.set('handler', command);
-            console.log(`✅ Handler carregado`);
+            console.log('✅ Handler carregado');
         }
     }
 }
@@ -58,7 +58,6 @@ client.on('interactionCreate', async (interaction) => {
     try {
         // --- SLASH COMMANDS ---
         if (interaction.isChatInputCommand()) {
-            // ✅ VERIFICAÇÃO DE OWNER
             if (interaction.user.id !== process.env.OWNER_ID) {
                 return interaction.reply({
                     content: '🚫 Apenas o dono do bot pode usar este comando.',
@@ -92,7 +91,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         // --- HANDLER (botões/modais do painel) ---
-        // ✅ PROTEÇÃO: se já foi respondido, não tenta de novo
         if (interaction.replied || interaction.deferred) return;
 
         const handler = client.commands.get('handler');
@@ -100,8 +98,8 @@ client.on('interactionCreate', async (interaction) => {
             await handler.handleInteraction(interaction, client);
         }
 
-    } catch (       err) {
-        console.error('❌ Erro no const interactionCreate:', err);
+    } catch (err) {
+        console.error('❌ Erro no interactionCreate:', err);
         try {
             if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
                 await interaction.reply({
@@ -109,7 +107,7 @@ client.on('interactionCreate', async (interaction) => {
                     flags: MessageFlags.Ephemeral
                 });
             }
-        } catch {}
+        } catch (e) {}
     }
 });
 
@@ -117,10 +115,11 @@ client.on('interactionCreate', async (interaction) => {
 // Ready — Reagendar sorteios + Registrar comandos
 // ============================
 client.once('ready', async () => {
-    console.log(`✅ Bot online: ${client.user.tag}`);
+    console.log('✅ Bot online: ' + client.user.tag);
 
+    // Reagendar sorteios
     try {
- config } = require('./src/database');
+        const { config } = require('./src/database');
         const sorteio = client.commands.get('sorteio');
         const sorteios = (await config.get('sorteios')) || {};
         client.sorteioTimers = client.sorteioTimers || {};
@@ -143,18 +142,19 @@ client.once('ready', async () => {
         console.error('❌ Erro ao reagendar sorteios:', err.message);
     }
 
+    // Registrar comandos
     try {
         const commands = [];
         const cmdPath = path.join(__dirname, 'src/commands');
-        const inter cmdFiles = fs.readdirSync(cmdaçãoPath**).filter(f => f.endsWith('.js'));
+        const cmdFiles = fs.readdirSync(cmdPath).filter(f => f.endsWith('.js'));
         for (const file of cmdFiles) {
             const cmd = require(path.join(cmdPath, file));
             if (cmd.data && cmd.data.name) commands.push(cmd.data.toJSON());
         }
-        console.log(`📤 Registrando ${commands.length} comandos...`);
+        console.log('📤 Registrando ' + commands.length + ' comandos...');
         const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
         await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-        console.log(`✅ ${commands.length} comandos registrados!`);
+        console.log('✅ ' + commands.length + ' comandos registrados!');
     } catch (err) {
         console.error('❌ Erro ao registrar comandos:', err.message);
     }
@@ -175,7 +175,7 @@ app.engine('html', (filePath, options, callback) => {
         let rendered = content.toString();
         for (let key in options) {
             if (typeof options[key] === 'string' || typeof options[key] === 'number') {
-                const regex = new RegExp(`<%= ${key} %>`, 'g');
+                const regex = new RegExp('<%= ' + key + ' %>', 'g');
                 rendered = rendered.replace(regex, options[key]);
             }
         }
@@ -189,7 +189,7 @@ app.set('view engine', 'html');
 require('./src/web/server')(app, client);
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 Web server rodando na porta ${PORT}`);
+    console.log('🌐 Web server rodando na porta ' + PORT);
 });
 
 client.login(process.env.TOKEN).catch(err => {
